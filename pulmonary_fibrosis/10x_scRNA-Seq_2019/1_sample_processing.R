@@ -116,9 +116,10 @@ dev.off()
 # Filter out cells with less than 1000 nFeature and more than 25% percent.mt
 ild <- subset(ild, subset = nFeature_RNA > 1000 & percent.mt < 25)
 
-# Optional step to save time
+# ======================================
+# Optional steps to save time
+# ======================================
 meta.data <- read.csv("GSE135893_IPF_metadata.csv", header = T, row.names = 1)
-
 # Remove unclassified doublets
 keep <- rownames(ild@meta.data[(rownames(ild@meta.data) %in% rownames(meta.data)), ])
 ild <- subset(ild, cells = keep)
