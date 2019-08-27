@@ -38,24 +38,29 @@ fig.width = 4.5
 fit.quantile <- 0.01
 
 rvel <- gene.relative.velocity.estimates(emat = epi_emat,
-              nmat = epi_nmat, smat = epi_smat, kCells = 50,
-              fit.quantile = fit.quantile, diagonal.quantiles = TRUE,
-              n.cores = 40)
+                                         nmat = epi_nmat,
+                                         smat = epi_smat,
+                                         kCells = 50,
+                                         fit.quantile = fit.quantile,
+                                         diagonal.quantiles = TRUE,
+                                         n.cores = 40)
 
-#saveRDS(rvel, "rvel.rds")
-
-rvel <- readRDS("rvel.rds")
-
-show.velocity.on.embedding.cor(epi_emb, rvel, n = 50, 
-                               scale = 'sqrt', cell.colors = epi_color,
-                               cex = cell.cex, arrow.scale
-                               = arrow.scale, show.grid.flow = T, 
-                               min.grid.cell.mass = 1, grid.n = 40,
-                               arrow.lwd = 2, main = c("Epi subset_", 40),
+show.velocity.on.embedding.cor(epi_emb,
+                               rvel,
+                               n = 50, 
+                               scale = 'sqrt',
+                               cell.colors = epi_color,
+                               cex = cell.cex,
+                               arrow.scale = arrow.scale,
+                               show.grid.flow = TRUE, 
+                               min.grid.cell.mass = 1,
+                               grid.n = 40,
+                               arrow.lwd = 2,
+                               main = c("Epi subset_", 40),
                                n.cores = 40)
 
 # ======================================
-# 
+# ILD Epithelial subset
 # ======================================
 sub_1 <- readRDS("/scratch/lbui/20190623_Final_version/190719_krt5_trans.rds")
 
@@ -79,26 +84,40 @@ fig.width <- 4.5
 fit.quantile <- 0.01
 
 sub_1_rvel <- gene.relative.velocity.estimates(emat = sub_1_emat,
-                                         nmat = sub_1_nmat,
-                                         smat = sub_1_smat, kCells = 50,
-                                         fit.quantile = fit.quantile, diagonal.quantiles = TRUE,
-                                         n.cores = 40)
+                                               nmat = sub_1_nmat,
+                                               smat = sub_1_smat,
+                                               kCells = 50,
+                                               fit.quantile = fit.quantile,
+                                               diagonal.quantiles = TRUE,
+                                               n.cores = 40)
 
-#saveRDS(sub_1_rvel, "sub_1_rvel.rds")
-
-show.velocity.on.embedding.cor(sub_1_emb, sub_1_rvel, n = 100, 
-                               scale = 'sqrt', cell.colors = epi_color,
-                               cex = cell.cex, arrow.scale
-                               = 1, show.grid.flow = T, 
-                               min.grid.cell.mass = 1, grid.n = 50,
-                               arrow.lwd = 2, main = c("5 pop velocity"),
+show.velocity.on.embedding.cor(sub_1_emb,
+                               sub_1_rvel,
+                               n = 100, 
+                               scale = 'sqrt',
+                               cell.colors = epi_color,
+                               cex = cell.cex,
+                               arrow.scale = 1,
+                               show.grid.flow = TRUE, 
+                               min.grid.cell.mass = 1,
+                               grid.n = 50,
+                               arrow.lwd = 2,
+                               main = c("5 pop velocity"),
                                n.cores = 40)
 
-# Trajectory modeling
-test <- show.velocity.on.embedding.eu(sub_1_emb, sub_1_rvel, n = 50, scale = 'sqrt', 
-                              cell.colors = epi_color, cex = cell.cex,
-                              nPcs = 30, sigma = 2.5, show.trajectories = TRUE,
-                              diffusion.steps = 400, n.trajectory.clusters = 15
-                              , ntop.trajectories = 1, embedding.knn = T,
-                              control.for.neighborhood.density = TRUE,
-                              n.cores = 40) 
+# Trajectory modeling (very RAM hungry)
+trajectory <- show.velocity.on.embedding.eu(sub_1_emb,
+                                      sub_1_rvel,
+                                      n = 50,
+                                      scale = 'sqrt', 
+                                      cell.colors = epi_color,
+                                      cex = cell.cex,
+                                      nPcs = 30,
+                                      sigma = 2.5,
+                                      show.trajectories = TRUE,
+                                      diffusion.steps = 400,
+                                      n.trajectory.clusters = 15,
+                                      ntop.trajectories = 1,
+                                      embedding.knn = TRUE,
+                                      control.for.neighborhood.density = TRUE,
+                                      n.cores = 40) 
