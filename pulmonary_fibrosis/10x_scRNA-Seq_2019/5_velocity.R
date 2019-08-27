@@ -30,11 +30,11 @@ epi_smat <- filter.genes.by.cluster.expression(epi_smat,epi_color,min.max.cluste
 length(intersect(rownames(epi_emat),rownames(epi_nmat)))
 length(intersect(intersect(rownames(epi_emat),rownames(epi_nmat)), rownames(epi_smat)))
 
-arrow.scale = 3
-cell.alpha = 0.4
-cell.cex = 1
-fig.height = 4
-fig.width = 4.5
+arrow.scale <- 3
+cell.alpha <- 0.4
+cell.cex <- 1
+fig.height <- 4
+fig.width <- 4.5
 fit.quantile <- 0.01
 
 rvel <- gene.relative.velocity.estimates(emat = epi_emat,
@@ -75,13 +75,6 @@ sub_1_smat <- filter.genes.by.cluster.expression(sub_1_smat, epi_color, min.max.
 
 length(intersect(rownames(sub_1_emat),rownames(sub_1_nmat)))
 length(intersect(intersect(rownames(sub_1_emat),rownames(sub_1_nmat)), rownames(sub_1_smat)))
-
-arrow.scale <- 3
-cell.alpha <- 0.4
-cell.cex <- 1
-fig.height <- 4
-fig.width <- 4.5
-fit.quantile <- 0.01
 
 sub_1_rvel <- gene.relative.velocity.estimates(emat = sub_1_emat,
                                                nmat = sub_1_nmat,
