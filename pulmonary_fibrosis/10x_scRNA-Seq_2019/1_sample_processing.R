@@ -116,7 +116,7 @@ dev.off()
 # Filter out cells with less than 1000 nFeature and more than 25% percent.mt
 ild <- subset(ild, subset = nFeature_RNA > 1000 & percent.mt < 25)
 
-# 
+# Optional step to save time
 meta.data <- read.csv("GSE135893_IPF_metadata.csv", header = T, row.names = 1)
 
 # Remove unclassified doublets
@@ -182,7 +182,9 @@ saveRDS(ild, file = "20190618_ILD_sct.rds")
 # ======================================
 ild <- RunUMAP(object = ild, dims = 1:20, verbose = F)
 ild <- FindNeighbors(object = ild, dims = 1:20, verbose = F)
-ild <- FindClusters(object = ild, resolution = 0.01, verbose = F)
+ild <- FindClusters(object = ild, resolution = 0.01, verbose = F
+
+# Skip the celltype classification steps by overwriting the meta.data
 ild@meta.data <- meta.data
 
 # ======================================
