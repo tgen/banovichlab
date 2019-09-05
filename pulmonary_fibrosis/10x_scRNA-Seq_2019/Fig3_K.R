@@ -8,10 +8,6 @@
 # Environment parameters
 # ======================================
 set.seed(12345)
-main_dir <- "/Users/agutierrez/Documents/projects/single_cell/IPF/loess"
-date <- gsub("-", "", Sys.Date())
-dir.create(file.path(main_dir, date), showWarnings = FALSE)
-setwd(file.path(main_dir, date))
 
 # =====================================
 # Load libraries
@@ -24,7 +20,13 @@ library(scater)
 # =====================================
 # Read in the object(s) 
 # =====================================
-krt5_6pop <- readRDS("/Volumes/scratch/lbui/201907_Slingshot_related/190731_krt5_6pop.rds")
+epi <- readRDS("Endothelial.rds")
+
+krt5_6pop <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$celltype %in%
+            c("KRT5-/KRT17+","Transitional AT2", "AT2", "Basal", "AT1"),]))
+krt5_6pop <- FindVariableFeatures(object = krt5_6pop, verbose = F, nfeatures = 3000)
+krt5_6pop <- ScaleData(object = krt5_6pop, verbose = F)
+krt5_6pop <- RunUMAP(krt5_6pop, dims = 1:10, verbose = F)
 
 # =====================================
 # Make subsets 
@@ -40,9 +42,6 @@ sub2 <- subset(krt5_6pop, cells = rownames(krt5_6pop@meta.data[krt5_6pop@meta.da
 
 sub2_control <- subset(sub2, cells = rownames(sub2@meta.data[sub2@meta.data$Status %in%
                                                                  c("Control"), ]))
-
-no_basal <- subset(krt5_6pop, cells = rownames(krt5_6pop@meta.data[!krt5_6pop@meta.data$celltype %in% 
-                                                                 c("Basal"), ]))
 
 krt5 <- subset(krt5_6pop, cells = rownames(krt5_6pop@meta.data[krt5_6pop@meta.data$celltype %in%
                                                                  c("KRT5-/KRT17+","Transitional AT2", "AT2"), ]))
@@ -111,8 +110,8 @@ t4 <- sub_slingshot4$slingPseudotime_1
 # =====================================
 # Genes of interest
 # =====================================
-gene.list <- c("NR1D1", "SOX4", "SOX9", "AREG", "ZMAT3", "PMEPA1", "TPM1", "MDK")
-plot.val <- c(1.25, 2.5, .6, 2, .825, 1.25, 2.25, 2.25)
+gene.list <- c("NR1D1", "SOX4", "SOX9", "ZMAT3", "MDK")
+plot.val <- c(1.25, 2.5, .6, .825, 2.25)
 
 # =====================================
 # Prepare date for loess plots
@@ -141,10 +140,10 @@ temp4 <- as.data.frame(temp4)
 temp4$index = 1:nrow(temp4)
 temp4$ct = krt5_ild@meta.data$celltype[order(t4)]
 
-# =====================================
-# Its loess time
-# =====================================
-pdf(file = paste(date, "loess_final_genes.pdf", sep = "_"), width = 16, height = 8.5)
+# ======================================
+# Figure 3: K
+# ======================================
+pdf(file = "loess_final_genes.pdf", width = 16, height = 8.5)
 for (i in 1:length(gene.list)) {
   print(paste(i, gene.list[i], sep = "_"))
   p1 <- ggplot(temp3, aes_string(y = gene.list[i] , x = temp3[, (ncol(temp3) -1)])) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, plot.val[i]))
@@ -157,10 +156,7 @@ for (i in 1:length(gene.list)) {
 }
 dev.off()
 
-# =====================================
-# Vln plots
-# =====================================
-pdf(file = paste(date, "vln_final_genes.pdf", sep = "_"))
+pdf(file = "vln_final_genes.pdf")
 plot.list <- list()
 for (i in 1:length(gene.list)) {
   print(paste(i, gene.list[i], sep = "_"))

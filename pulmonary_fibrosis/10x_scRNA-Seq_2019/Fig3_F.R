@@ -82,14 +82,8 @@ ldat <- combine(boris)
 ldat <- lapply(ldat,function(x) {
   colnames(x) <-  gsub("_unique.bam","",gsub(":","_",colnames(x)))
   colnames(x) <-  gsub("_unique.bam","",gsub("x","",colnames(x)))
-  # names <- do.call(rbind, strsplit(colnames(x), "_"))
-  # names <- as.data.frame(names)
-  # names <- paste(names[8], names[10],sep = "_")
-  # colnames(x) <- names
   x
 })
-
-saveRDS(ldat, "new_ldat.rds")
 
 rm(boris)
 rm (loom_1, loom_2, loom_3, loom_4, loom_5,
@@ -138,11 +132,6 @@ smat<- cbind(ldat[[3]],ldat[[6]],ldat[[9]],ldat[[12]],
              ldat[[111]],ldat[[114]],ldat[[117]],ldat[[120]],
              ldat[[123]],ldat[[126]],ldat[[129]])
 
-
-# emat = cbind(ldat[[seq(1,115,3)]])
-# nmat = cbind(ldat[seq(2,116,3)])
-# smat = cbind(ldat[seq(3,117,3)])
-
 hist(log10(Matrix::rowSums(epi_emat)+1),col='wheat',xlab='log10[ number of reads + 1]',main='number of reads per gene (emat)')
 hist(log10(Matrix::rowSums(epi_nmat)+1),col='wheat',xlab='log10[ number of reads + 1]',main='number of reads per gene (nmat)')
 hist(log10(Matrix::rowSums(epi_smat)+1),col='wheat',xlab='log10[ number of reads + 1]',main='number of reads per gene (smat)')
@@ -150,36 +139,13 @@ hist(log10(Matrix::rowSums(epi_smat)+1),col='wheat',xlab='log10[ number of reads
 # ======================================
 # Subset epithelial cells
 # ======================================
-epi <- readRDS("/scratch/lbui/20190623_Final_version/190623_EpiA_sizereduced.rds")
-onion <- as.character(epi@meta.data$Diagnosis)
-onion[onion == "sacroidosis"] <- "Sarcoidosis"
-epi@meta.data$Diagnosis <- onion
+epi <- readRDS("Epithelial.rds")
 
-
-DimPlot(epi, group.by = "celltypeDimplotOrder")
-
-#epi_subset <- ldat[["spliced"]][colnames(ldat[[1]]) %in% rownames(epi@meta.data)]
-#epi_subset <- subset(emat, colnames(emat) %in% rownames(epi@meta.data))
 epi_emat <- emat[,colnames(emat) %in% rownames(epi@meta.data)]
-rm(emat)
-
-saveRDS(epi_emat, "epi_emat.rds")
-epi_emat <- readRDS("epi_emat.rds")
-
 epi_nmat <- nmat[,colnames(nmat) %in% rownames(epi@meta.data)]
-rm(nmat)
-
-saveRDS(epi_nmat, "epi_nmat.rds")
-epi_nmat <- readRDS("epi_nmat.rds")
-
 epi_smat <- smat[,colnames(smat) %in% rownames(epi@meta.data)]
-rm(smat)
-
-saveRDS(epi_smat, "epi_smat.rds")
-epi_smat <- readRDS("epi_smat.rds")
-
 epi_emb <- epi@reductions$umap@cell.embeddings
-pca_emb <- epi@reductions$pca@cell.embeddings
+
 epi_color <- as.character(epi@meta.data$celltype)
 epi_color <- setNames(epi_color, rownames(epi@meta.data))
 
@@ -199,5 +165,61 @@ onion[onion == "AT2"] <- "#EE7342"
 onion[onion == "AT1"] <- "#F76A62"
 epi_color <- onion
 
-saveRDS(epi_color, "epi_color.rds")
+# ======================================
+# ILD Epithelial subset
+# ======================================
+epi_ild <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$Status == "ILD",]))
 
+# KRT5-/KRT17+, Transitional AT2, AT2, AT1 and Club cells
+sub_1 <- subset(epi_ild, cells = rownames(epi_ild@meta.data[epi_ild@meta.data$celltype %in%
+                                                                  c("KRT5-/KRT17+",
+                                                                    "Transitional AT2",
+                                                                    "AT2",
+                                                                    "AT1",
+                                                                    "SCGB3A2+",
+                                                                    "SCGB3A2+ SCGB1A1+"),]))
+sub_1 <- FindVariableFeatures(sub_1, verbose = F, nfeatures = 3000)
+sub_1 <- ScaleData(sub_1, verbose = F)
+sub_1 <- RunUMAP(sub_1, dims = 1:10, verbose = F)
+DimPlot(sub_1)
+
+# Remove double positive
+sub_1 <- subset(sub_1, cells = rownames(sub_1@meta.data[!sub_1@meta.data$celltype %in%
+                                                              c("SCGB3A2+ SCGB1A1+"),]))
+
+sub_1_emb <- sub_1@reductions$umap@cell.embeddings
+sub_1_emat <- epi_emat[,colnames(epi_emat) %in% rownames(sub_1@meta.data)]
+sub_1_nmat <- epi_nmat[,colnames(epi_nmat) %in% rownames(sub_1@meta.data)]
+sub_1_smat <- epi_smat[,colnames(epi_smat) %in% rownames(sub_1@meta.data)]
+
+sub_1_emat <- filter.genes.by.cluster.expression(sub_1_emat, epi_color, min.max.cluster.average = .1)
+sub_1_nmat <- filter.genes.by.cluster.expression(sub_1_nmat, epi_color, min.max.cluster.average = .05)
+sub_1_smat <- filter.genes.by.cluster.expression(sub_1_smat, epi_color, min.max.cluster.average = 0.001)
+
+length(intersect(rownames(sub_1_emat),rownames(sub_1_nmat)))
+length(intersect(intersect(rownames(sub_1_emat),rownames(sub_1_nmat)), rownames(sub_1_smat)))
+
+sub_1_rvel <- gene.relative.velocity.estimates(emat = sub_1_emat,
+                                               nmat = sub_1_nmat,
+                                               smat = sub_1_smat,
+                                               kCells = 50,
+                                               fit.quantile = fit.quantile,
+                                               diagonal.quantiles = TRUE,
+                                               n.cores = 40)
+
+# ======================================
+# Figure 3: F
+# ======================================
+show.velocity.on.embedding.cor(sub_1_emb,
+                               sub_1_rvel,
+                               n = 100, 
+                               scale = 'sqrt',
+                               cell.colors = epi_color,
+                               cex = cell.cex,
+                               arrow.scale = 1,
+                               show.grid.flow = TRUE, 
+                               min.grid.cell.mass = 1,
+                               grid.n = 50,
+                               arrow.lwd = 2,
+                               main = c("Epi ILD 5 pop velocity"),
+                               n.cores = 40)
