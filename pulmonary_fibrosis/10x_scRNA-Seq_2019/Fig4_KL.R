@@ -326,3 +326,125 @@ top5_mesen_to_epi_deg <- merge(top5_mesen_to_epi, mesen_L_deg, all.x = T) %>%
 
 write.table(top5_mesen_to_epi_deg, file = "top5_mesen_to_epi_deg.txt", 
             sep = "\t", quote = F, row.names = F, col.names = T)
+
+#==============================================================================#
+#### Read in gene expression data ####
+#==============================================================================#
+ild <- readRDS(file = "/scratch/agutierrez/rstudio_server/Seurat/data/ILD_annotated_fullsize.rds")
+
+epi_mesen <- subset(ild, cells = rownames(ild@meta.data[ild@meta.data$population %in% 
+                                                          c("Epithelial", "Mesenchymal"), ]))
+epi_mesen <- FindVariableFeatures(epi_mesen, verbose = T, nfeatures = 3000)
+epi_mesen <- ScaleData(epi_mesen, features = row.names(epi_mesen@assays$SCT@data))
+data <- epi_mesen@assays$SCT@scale.data
+data <- as.data.frame(t(data))
+data$celltype <- (epi_mesen@meta.data$celltype)
+data$Status <- (epi_mesen@meta.data$Status)
+## sanity check
+setequal(rownames(epi_mesen@meta.data[epi_mesen@meta.data$Status == "ILD",]), 
+         rownames(data[data$Status == "ILD",]))
+
+#==============================================================================#
+#### find top 20% expressed genes (in each celltype) for Disease cells ####
+#==============================================================================#
+dis_data <- dplyr:: filter(data, Status == "ILD")
+## this step takes several minutes
+dis_20pct <- rawParse(dis_data,top_genes=20)
+
+#==============================================================================#
+#### Find LR pairs ####
+#==============================================================================#
+ILD_LRpairs<-NULL
+load("/scratch/syahn/Seurat/LR_database.rda")
+ILD_LRpairs <- FindLR(dis_20pct)
+ILD_LRpairs <- ILD_LRpairs[order(ILD_LRpairs$cell_from_mean_exprs*ILD_LRpairs$cell_to_mean_exprs,decreasing=T),]
+ILD_LRpairs$ligand_receptor = paste(ILD_LRpairs$ligand, ILD_LRpairs$receptor, sep = "_")
+
+#==============================================================================#
+#### Mesen to Epi ####
+#==============================================================================#
+fibro_to_epi_all <- list()
+for (i in 1:length(epi_cells)) {
+  fibro_to_epi_all[[i]] <- dplyr::filter(ILD_LRpairs, cell_from == "Fibroblasts") %>%
+    dplyr::filter(cell_to == epi_cells[i])
+}
+names(fibro_to_epi_all) <- epi_cells
+
+fibro_to_epi_top20 <- lapply(fibro_to_epi_all, top_frac, n = 0.2, wt = cell_from_mean_exprs*cell_to_mean_exprs)
+
+all_LR <- lapply(fibro_to_epi_all, function(i){
+  i$ligand_receptor
+})
+
+top20_LR <- lapply(fibro_to_epi_top20, function(i){
+  i$ligand_receptor
+})
+
+## Permutations and Plots
+par(mfrow=c(3,4))
+
+de_gene_list = matrix(nrow = 1000, ncol =1)
+for(i in 1:1000){
+  tmp = data.frame(x = all_LR$'AT1'[sample(length(all_LR$'AT1'), length(top20_LR$'AT1'))]) %>%
+    separate(x, c("ligand", "receptor"), sep = "_")
+  de_gene_list[i,] = length(tmp$ligand[tmp$ligand %in% list.degs$Fibroblasts$gene]) + length(tmp$receptor[tmp$receptor %in% list.degs$'AT1'$gene])
+}
+
+top20_deLR = ((length(fibro_to_epi_top20$'AT1'$ligand[fibro_to_epi_top20$'AT1'$ligand %in% list.degs$'Fibroblasts'$gene])) + 
+                (length(fibro_to_epi_top20$'AT1'$receptor[fibro_to_epi_top20$'AT1'$receptor %in% list.degs$'AT1'$gene])))
+p = length(de_gene_list[de_gene_list > top20_deLR])/1000
+
+hist(de_gene_list, 
+     xlim = c(0, (top20_deLR + 5)),
+     ylim = c(0, 250),
+     main = "'Fibroblasts' ligands to 'AT1' receptors", cex.main = 0.8,
+     xlab = "number of DE genes", cex.axis = 0.8,
+     sub = paste("1k permutations of", length(fibro_to_epi_top20$'AT1'$ligand_receptor), "LR pairs sampled from", length(all_LR$'AT1'), "total LR pairs"), 
+     cex.sub = 0.8)
+abline(v=top20_deLR, col = "red")
+text((top20_deLR -4), 150, labels = ifelse(p == 0, "p < 0.001", paste("p=", p)), cex = 0.8)
+
+#==============================================================================#
+#### Epi to Mesen ####
+#==============================================================================#
+epi_to_fibro_all <- list()
+for (i in 1:length(epi_cells)) {
+  epi_to_fibro_all[[i]] <- dplyr::filter(ILD_LRpairs, cell_to == "Fibroblasts") %>%
+    dplyr::filter(cell_from == epi_cells[i])
+}
+names(epi_to_fibro_all) <- epi_cells
+
+epi_to_fibro_top20 <- lapply(epi_to_fibro_all, top_frac, n = 0.2, wt = cell_from_mean_exprs*cell_to_mean_exprs)
+
+all_LR <- lapply(epi_to_fibro_all, function(i){
+  i$ligand_receptor
+})
+
+top20_LR <- lapply(epi_to_fibro_top20, function(i){
+  i$ligand_receptor
+})
+
+## Permutations and Plots
+par(mfrow=c(3,4))
+
+de_gene_list = matrix(nrow = 1000, ncol =1)
+for(i in 1:1000){
+  tmp = data.frame(x = all_LR$'AT1'[sample(length(all_LR$'AT1'), length(top20_LR$'AT1'))]) %>%
+    separate(x, c("ligand", "receptor"), sep = "_")
+  de_gene_list[i,] = length(tmp$ligand[tmp$ligand %in% list.degs$'AT1'$gene]) + length(tmp$receptor[tmp$receptor %in% list.degs$'Fibroblasts'$gene])
+}
+
+top20_deLR = ((length(epi_to_fibro_top20$'AT1'$ligand[epi_to_fibro_top20$'AT1'$ligand %in% list.degs$'AT1'$gene])) + 
+              (length(epi_to_fibro_top20$'AT1'$receptor[epi_to_fibro_top20$'AT1'$receptor %in% list.degs$'Fibroblasts'$gene])))
+p = length(de_gene_list[de_gene_list > top20_deLR])/1000
+
+
+hist(de_gene_list, 
+     xlim = c(0, (top20_deLR + 5)),
+     ylim = c(0, 250),
+     main = "'AT1' ligands to 'Fibroblasts' receptors", cex.main = 0.8,
+     xlab = "number of DE genes", cex.axis = 0.8,
+     sub = paste("1k permutations of", length(epi_to_fibro_top20$'AT1'$ligand_receptor), "LR pairs sampled from", length(all_LR$'AT1'), "total LR pairs"), 
+     cex.sub = 0.8)
+abline(v=top20_deLR, col = "red")
+text((top20_deLR -4), 150, labels = ifelse(p == 0, "p < 0.001", paste("p=", p)), cex = 0.8)
