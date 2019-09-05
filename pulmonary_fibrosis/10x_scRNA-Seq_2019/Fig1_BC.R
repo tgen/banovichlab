@@ -725,7 +725,7 @@ DimPlot(endo, group.by = "celltype")
 # ======================================
 # Merge all objects back into ild
 # ======================================
-ild <- ild(x = epi, y=c(endo, meso, immune))
+ild <- merge(x = epi, y=c(endo, meso, immune))
 ild <- FindVariableFeatures(ild, verbose = T, nfeatures = 3000)
 ild <- ScaleData(ild, features = row.names(ild@assays$SCT@data))
 ild <- RunPCA(ild)
