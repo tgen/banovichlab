@@ -6,11 +6,11 @@ This repo contains the code used for analysis in our paper "Single-cell RNA-sequ
 
 
 
-##### GEO Accession: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE135893
+#### GEO Accession: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE135893
 
 ---
 
-##### Data info:
+#### Data info:
 | File | Descripton  |
 | ------------ | ------------ |
 |[GSE135893_ILD_annotated_fullsize.rds.gz](https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE135893&format=file&file=GSE135893%5FILD%5Fannotated%5Ffullsize%2Erds%2Egz "GSE135893_ILD_annotated_fullsize.rds.gz") | Seurat object containing all cells and annotations used in analysis |
