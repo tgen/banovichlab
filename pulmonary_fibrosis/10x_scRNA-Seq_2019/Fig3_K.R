@@ -20,7 +20,7 @@ library(scater)
 # =====================================
 # Read in the object(s) 
 # =====================================
-epi <- readRDS("Endothelial.rds")
+epi <- readRDS("Epithelial.rds")
 
 krt5_6pop <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$celltype %in%
             c("KRT5-/KRT17+","Transitional AT2", "AT2", "Basal", "AT1"),]))
