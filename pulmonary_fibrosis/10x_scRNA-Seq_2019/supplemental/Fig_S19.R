@@ -9,6 +9,6 @@ library(Seurat)
 meso <- readRDS("Mesochymal.rds")
 
 # ======================================
-# Figure S: 13
+# Figure S: 19
 # ======================================
 DimPlot(meso, group.by = "Diagnosis")

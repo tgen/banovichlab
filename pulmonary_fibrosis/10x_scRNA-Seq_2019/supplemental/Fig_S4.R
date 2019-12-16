@@ -90,7 +90,7 @@ upset(upset_krt5_vs_c, nsets = 15, text.scale = 2, show.numbers = F, keep.order 
                                 "HAS1 High Fibroblasts"), nintersects = 200)
 
 # ======================================
-# Figure S: 3
+# Figure S: 4
 # ======================================
 epi_fibro_deg2 <- list(krt5_basal,krt5_at2,krt5_at1,krt5_transat2,krt5_proli_epi,
                       krt5_fibro,krt5_myo,krt5_plin2,krt5_has1)

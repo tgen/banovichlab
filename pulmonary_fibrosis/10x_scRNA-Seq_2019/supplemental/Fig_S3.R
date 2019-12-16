@@ -13,14 +13,14 @@ immune <- readRDS("Immune.rds")
 meso <- readRDS("Mesochymal.rds")
 
 # ======================================
-# Figure S: 2A
+# Figure S: 3A
 # ======================================
 FeaturePlot(ild, c("PTPRC",
                    "EPCAM",
                    "PECAM1"))
 
 # ======================================
-# Figure S: 2C
+# Figure S: 3C
 # ======================================
 ElbowPlot(endo)
 ElbowPlot(epi)

@@ -9,7 +9,7 @@ library(Seurat)
 epi <- readRDS("Epithelial.rds")
 
 # ======================================
-# Figure S: 10
+# Figure S: 15
 # ======================================
 DotPlot(epi, c("SOX9",
                "SOX4",
