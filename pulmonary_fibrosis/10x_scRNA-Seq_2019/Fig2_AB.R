@@ -14,12 +14,12 @@ library(Seurat)
 epi <- readRDS("Epithelial.rds")
 
 # ======================================
-# Figure 2: A
+# Figure 2: B
 # ======================================
 DimPlot(epi, group.by = "celltype")
 
 # ======================================
-# Figure 2: B
+# Figure 2: A
 # ======================================
 gene_list <- c("AGER", "ABCA3", "SFTPC", "SCGB3A2", "SCGB1A1", "MUC5B", "KRT5")
 
