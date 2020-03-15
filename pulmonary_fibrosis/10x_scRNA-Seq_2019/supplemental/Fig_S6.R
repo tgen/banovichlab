@@ -14,16 +14,6 @@ library(Seurat)
 epi <- readRDS("Epithelial.rds")
 
 # ======================================
-# Figure 2: B
+# Figure S6:
 # ======================================
-DimPlot(epi, group.by = "celltype")
-
-# ======================================
-# Figure 2: A
-# ======================================
-gene_list <- c("AGER", "ABCA3", "SFTPC", "SCGB3A2", "SCGB1A1", "MUC5B", "KRT5")
-
-VlnPlot(object = epi,
-        ncol = 1,
-        features = gene_list,
-        pt.size = 0) + NoLegend()
+DimPlot(epi, group.by = "celltype", split.by "Status")
