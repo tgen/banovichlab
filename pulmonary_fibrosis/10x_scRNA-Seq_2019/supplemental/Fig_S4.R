@@ -1,121 +1,149 @@
+# ====================================
+# Author : Linh T. Bui, lbui@tgen.org
+# Date: 2020-03-11
+# SCIENECES ADVANCES - IPF: FIGURE S4
+# ===================================
+
+# Set up working environment
 library(Seurat)
 library(dplyr)
 library(UpSetR)
-library(calibrate)
-library(MAST)
-library(DESeq2)
+library(rlist)
 
-set.seed(2811)
+set.seed(12345)
 
+# Set date and create out folder
+getwd()
+Sys.Date()
+main_dir <- "/scratch/lbui/RStudio_folder/"
+date <- gsub("-", "", Sys.Date())
 
-## DEG for control vs IPF, all cell types and make Volcanoplot
+dir.create(file.path(main_dir, date), showWarnings = FALSE)
+setwd(file.path(main_dir, date))
 
-ild <- readRDS("ILD.rds")
-all_deg <- FindMarkers(ild, group.by = "Diagnosis", ident.1 = "IPF", ident.2 = "Control",
-                      test.use = "negbinom", logfc.threshold = 0, min.pct = 0.2)
-test <- FindMarkers(ild, group.by = "Diagnosis", ident.1 = "IPF", ident.2 = "Control",
-                        logfc.threshold = 0)
+getwd()
 
-onion <- as.num
-eric(all_deg$p_val_adj)
-onion[onion <= "1e-320"] <- "8.764725e-320"
-#onion <- as.numeric(onion)
-all_deg$p_val_adj2 <- as.numeric(onion)
+# Read in Seurat object
+ild <- readRDS("/scratch/lbui/IPF_seurat_objects/190623_ILD_annotated_sizereduced.rds")
 
-plot(all_deg$avg_logFC,-log10(all_deg$p_val_adj2), col="light grey", xlab = "log2(Fold change)"
-     , ylab = "-log10(p value)", xlim = c(-1.5,1.5), pch=20, cex=.7)
-sel <- which(all_deg$p_val_adj <= .1)
-points(all_deg[sel, "avg_logFC"], -log10(all_deg[sel, "p_val_adj"]), col="#EE7342", pch=20,cex=.7)
-with(subset(all_deg, p_val_adj<=0.1 & abs(avg_logFC) >= 0.5), textxy(avg_logFC, -log10(p_val_adj), 
-                            labs = row.names(all_deg[abs(all_deg$avg_logFC) >= 0.5, ]), cex=0.7, offset =1, 
-                                                    pos = 3, col="#EE7342"))
-write.table(all_deg, file = "190722_All_IPF_vs_control.csv", sep = ",")
+# Running DE analysis using negative binominal test
+ild_list = list()
+j=0
+for(i in unique(ild@meta.data$celltype)){
+  j=j+1
+  ild_list[[j]] <- SubsetData(ild, cells = row.names(ild@meta.data[ild@meta.data$celltype == i,]))
+}
+for(i in 1:length(ild_list)){
+  names(ild_list) <- lapply(ild_list, function(xx){paste(unique(xx@meta.data$celltype))})
+}
 
-###
+disease_vs_control <- lapply(ild_list, function(xx){
+  print(unique(xx@meta.data$celltype))
+  if(length(unique(xx@meta.data$Status)) > 1) {
+    FindMarkers(xx, group.by = "Status", ident.1 = "Control", ident.2 = "ILD", test.use = "negbinom")
+  } 
+  else{
+    return(NULL)
+  } 
+})
 
-epi_mes <- readRDS("190708_Epi_mes.rds")
+for(i in 1:length(ild_list)){
+  write.table(disease_vs_control[[i]], paste(gsub("/", "", unique(ild_list[[i]]@meta.data$celltype)), "_disease_vs_control", ".csv"), sep =",", quote = F)
+}
 
-epi_mes.ipf <- subset(epi_mes, cells = row.names(epi_mes@meta.data
-                                                 [epi_mes@meta.data$Diagnosis == c("IPF"),]))
-epi_fibro_CT <- c("HAS1 High Fibroblasts","PLIN2+ Fibroblasts","Myofibroblasts",
-                  "Fibroblasts","KRT5-/KRT17+","Transitional AT2","AT2","AT1",
-                  "SCGB3A2+ SCGB1A1+","SCGB3A2+","Proliferating Epithelial Cells",
-                  "MUC5B+","MUC5AC+ High","Differentiating Ciliated","Ciliated","Basal")
+# Prepare upset plots
+## Remove cell types with less than 50 cells before making the upset plot
+temp <- c("HAS1 High Fibroblasts","KRT5-/KRT17+","MUC5AC+ High", "pDCs", "PLIN2+ Fibroblasts", "Mesothelial Cells")
+temp1 <- list.remove(disease_vs_control, c("HAS1 High Fibroblasts","KRT5-/KRT17+","MUC5AC+ High", "pDCs", "PLIN2+ Fibroblasts", "Mesothelial Cells"))
+names <- unique(ild@meta.data$celltype)
+names <- names[! names %in% temp]
 
-epi_fibro <- subset(epi_mes, cells = rownames(epi_mes@meta.data[epi_mes@meta.data$celltype 
-                                                                %in% epi_fibro_CT,]))
-krt5_basal <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "Basal", test.use = "negbinom")
-krt5_at2 <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "AT2", test.use = "negbinom")
-krt5_at1 <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "AT1", test.use = "negbinom")
-krt5_transat2 <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "Transitional AT2", test.use = "negbinom")
-krt5_ciliated <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "Ciliated", test.use = "negbinom")
-krt5_diff_ciliated <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "Differentiating Ciliated", test.use = "negbinom")
-krt5_proli_epi <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "Proliferating Epithelial Cells", test.use = "negbinom")
-krt5_muc5b <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "MUC5B+", test.use = "negbinom")
-krt5_muc5ac<- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "MUC5AC+ High", test.use = "negbinom")
-krt5_scgb3a2 <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "SCGB3A2+", test.use = "negbinom")
-krt5_scgb3a2_1a1<- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "SCGB3A2+ SCGB1A1+", test.use = "negbinom")
-krt5_fibro <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "Fibroblasts", test.use = "negbinom")
-krt5_myo <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "Myofibroblasts", test.use = "negbinom")
-krt5_plin2 <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "PLIN2+ Fibroblasts", test.use = "negbinom")
-krt5_has1 <- FindMarkers(epi_mes.ipf, group.by = "celltype", ident.1 = "KRT5-/KRT17+", ident.2 = "HAS1 High Fibroblasts", test.use = "negbinom")
-
-epi_fibro_deg <- list(krt5_basal,krt5_at2,krt5_at1,krt5_transat2,krt5_ciliated,krt5_diff_ciliated,krt5_proli_epi,krt5_muc5ac,krt5_muc5b,
-                      krt5_scgb3a2, krt5_scgb3a2_1a1, krt5_fibro,krt5_myo,krt5_plin2,krt5_has1)
-names(epi_fibro_deg) <- c("Basal","AT2","AT1","Transitional AT2","Ciliated","Differentiating Ciliated","Proliferating Epithelial",
-                          "MUC5B+","MUC5AC+ High", "SCGB3A2+", "SCGB3A2+ SCGB1A1+", "Fibroblasts", "Myofibroblasts","PLIN2+ Fibroblasts",
-                          "HAS1 High Fibroblasts")
-
-onion <- lapply(epi_fibro_deg, function(xx){ row.names(xx[xx$p_val_adj <= .1,])})
+## Make upset plots (for cell types) with the top 60 intersects
+onion <- lapply(temp1, function(xx){ row.names(xx[xx$p_val_adj <= .1,])})
 onion <- unique(unlist(onion))
-onion2 <- lapply(epi_fibro_deg, function(xx) {onion %in% row.names(xx[xx$p_val_adj <= .1,])})
-upset_krt5_vs_c <- as.data.frame(onion2, col.names = 1:length(onion2) )
-upset_krt5_vs_c <- cbind(onion2[[1]], onion2[[2]], onion2[[3]], onion2[[4]], 
-                      onion2[[5]], onion2[[6]], onion2[[7]], onion2[[8]],
-                      onion2[[9]], onion2[[10]], onion2[[11]], onion2[[12]],
-                      onion2[[13]], onion2[[14]], onion2[[15]])
-upset_krt5_vs_c <- as.data.frame(upset_krt5_vs_c)
+onion2 <- lapply(temp1, function(xx) {onion %in% row.names(xx[xx$p_val_adj <= .1,])})
+upset_d_vs_c <- as.data.frame(onion2, col.names = 1:length(onion2) )
+upset_d_vs_c <- cbind(onion2[[1]], onion2[[2]], onion2[[3]], onion2[[4]], onion2[[5]], onion2[[6]],
+                      onion2[[7]], onion2[[8]], onion2[[9]], onion2[[10]], onion2[[11]], onion2[[12]],
+                      onion2[[13]], onion2[[14]], onion2[[15]], onion2[[16]], onion2[[17]], onion2[[18]],
+                      onion2[[19]], onion2[[20]], onion2[[21]], onion2[[22]], onion2[[23]], onion2[[24]],
+                      onion2[[25]])
+upset_d_vs_c <- as.data.frame(upset_d_vs_c)
 
-row.names(upset_krt5_vs_c) <- onion
-colnames(upset_krt5_vs_c) <- c("Basal","AT2","AT1","Transitional AT2","Ciliated","Differentiating Ciliated","Proliferating Epithelial",
-                               "MUC5B+","MUC5AC+ High", "SCGB3A2+", "SCGB3A2+ SCGB1A1+", "Fibroblasts", "Myofibroblasts","PLIN2+ Fibroblasts",
-                               "HAS1 High Fibroblasts")
+row.names(upset_d_vs_c) <- onion
+colnames(upset_d_vs_c) <- names
 
-upset_krt5_vs_c[upset_krt5_vs_c == T] <- 1
-upset_krt5_vs_c[upset_krt5_vs_c == F] <- 0
+upset_d_vs_c[upset_d_vs_c == T] <- 1
+upset_d_vs_c[upset_d_vs_c == F] <- 0
 
-upset(upset_krt5_vs_c, nsets = 15, text.scale = 2, show.numbers = F, keep.order = T, sets = c("Basal",
-                                "AT2","AT1","Transitional AT2","Ciliated","Differentiating Ciliated","Proliferating Epithelial",
-                                "MUC5B+","MUC5AC+ High", "SCGB3A2+", "SCGB3A2+ SCGB1A1+", "Fibroblasts", "Myofibroblasts","PLIN2+ Fibroblasts",
-                                "HAS1 High Fibroblasts"), nintersects = 200)
+pdf("20200311_All_upset.pdf")
+upset(upset_d_vs_c, nsets = 25, text.scale = 1, show.numbers = F, nintersects = 60)
+dev.off()
 
-# ======================================
-# Figure S: 4
-# ======================================
-epi_fibro_deg2 <- list(krt5_basal,krt5_at2,krt5_at1,krt5_transat2,krt5_proli_epi,
-                      krt5_fibro,krt5_myo,krt5_plin2,krt5_has1)
-names(epi_fibro_deg2) <- c("Basal","AT2","AT1","Transitional AT2","Proliferating Epithelial",
-                          "Fibroblasts", "Myofibroblasts","PLIN2+ Fibroblasts",
-                          "HAS1 High Fibroblasts")
+## Make upset plots (for cell types per population)
+# Epithelial cells
+epi <- list.subset (temp1, c("Basal","SCGB3A2+ SCGB1A1+","AT2","Proliferating Epithelial Cells",
+                       "SCGB3A2+", "AT1", "Differentiating Ciliated", "MUC5B+",
+                       "Ciliated", "Transitional AT2"))
 
-onion <- lapply(epi_fibro_deg2, function(xx){ row.names(xx[xx$p_val_adj <= .1,])})
+onion <- lapply(epi, function(xx){ row.names(xx[xx$p_val_adj <= .1,])})
 onion <- unique(unlist(onion))
-onion2 <- lapply(epi_fibro_deg2, function(xx) {onion %in% row.names(xx[xx$p_val_adj <= .1,])})
-upset_krt5_vs_c <- as.data.frame(onion2, col.names = 1:length(onion2) )
-upset_krt5_vs_c <- cbind(onion2[[1]], onion2[[2]], onion2[[3]], onion2[[4]], 
-                         onion2[[5]], onion2[[6]], onion2[[7]], onion2[[8]],
-                         onion2[[9]])
-upset_krt5_vs_c <- as.data.frame(upset_krt5_vs_c)
+onion2 <- lapply(epi, function(xx) {onion %in% row.names(xx[xx$p_val_adj <= .1,])})
+upset_d_vs_c <- as.data.frame(onion2, col.names = 1:length(onion2) )
+upset_d_vs_c <- cbind(onion2[[1]], onion2[[2]], onion2[[3]], onion2[[4]], onion2[[5]], onion2[[6]],
+                      onion2[[7]], onion2[[8]], onion2[[9]], onion2[[10]])
+upset_d_vs_c <- as.data.frame(upset_d_vs_c)
 
-row.names(upset_krt5_vs_c) <- onion
-colnames(upset_krt5_vs_c) <- c("Basal","AT2","AT1","Transitional AT2","Proliferating Epithelial",
-                               "Fibroblasts", "Myofibroblasts","PLIN2+ Fibroblasts",
-                               "HAS1 High Fibroblasts")
+row.names(upset_d_vs_c) <- onion
+colnames(upset_d_vs_c) <- names(epi)
 
-upset_krt5_vs_c[upset_krt5_vs_c == T] <- 1
-upset_krt5_vs_c[upset_krt5_vs_c == F] <- 0
+upset_d_vs_c[upset_d_vs_c == T] <- 1
+upset_d_vs_c[upset_d_vs_c == F] <- 0
 
-upset(upset_krt5_vs_c, nsets = 9, text.scale = 2, show.numbers = F, keep.order = T, 
-      sets = c("HAS1 High Fibroblasts","PLIN2+ Fibroblasts","Myofibroblasts","Fibroblasts",
-               "Proliferating Epithelial","Transitional AT2","AT1","AT2","Basal"), nintersects = 90)
+pdf("20200311_Epi_upset.pdf")
+upset(upset_d_vs_c, nsets = 25, text.scale = 1, show.numbers = F, nintersects = 60)
+dev.off()
+
+# Endothelial and Mesenchymal cells
+endo <- list.subset (temp1, c("Lymphatic Endothelial Cells", "Endothelial Cells", "Smooth Muscle Cells","Fibroblasts","Myofibroblasts"))
+
+onion <- lapply(endo, function(xx){ row.names(xx[xx$p_val_adj <= .1,])})
+onion <- unique(unlist(onion))
+onion2 <- lapply(endo, function(xx) {onion %in% row.names(xx[xx$p_val_adj <= .1,])})
+upset_d_vs_c <- as.data.frame(onion2, col.names = 1:length(onion2) )
+upset_d_vs_c <- cbind(onion2[[1]], onion2[[2]], onion2[[3]], onion2[[4]], onion2[[5]], onion2[[6]],
+                      onion2[[7]], onion2[[8]], onion2[[9]], onion2[[10]])
+upset_d_vs_c <- as.data.frame(upset_d_vs_c)
+
+row.names(upset_d_vs_c) <- onion
+colnames(upset_d_vs_c) <- names(endo)
+
+upset_d_vs_c[upset_d_vs_c == T] <- 1
+upset_d_vs_c[upset_d_vs_c == F] <- 0
+
+pdf("20200311_Endo_mesen_upset.pdf")
+upset(upset_d_vs_c, nsets = 25, text.scale = 1, show.numbers = F, nintersects = 60)
+dev.off()
+
+# Immune cells
+immune <- list.subset (temp1, c("Proliferating Macrophages","Mast Cells", "T Cells", "Plasma Cells",
+                                "Macrophages","Proliferating T Cells","NK Cells", "B Cells", "cDCs", "Monocytes"))
+
+onion <- lapply(immune, function(xx){ row.names(xx[xx$p_val_adj <= .1,])})
+onion <- unique(unlist(onion))
+onion2 <- lapply(immune, function(xx) {onion %in% row.names(xx[xx$p_val_adj <= .1,])})
+upset_d_vs_c <- as.data.frame(onion2, col.names = 1:length(onion2) )
+upset_d_vs_c <- cbind(onion2[[1]], onion2[[2]], onion2[[3]], onion2[[4]], onion2[[5]], onion2[[6]],
+                      onion2[[7]], onion2[[8]], onion2[[9]], onion2[[10]])
+upset_d_vs_c <- as.data.frame(upset_d_vs_c)
+
+row.names(upset_d_vs_c) <- onion
+colnames(upset_d_vs_c) <- names(immune)
+
+upset_d_vs_c[upset_d_vs_c == T] <- 1
+upset_d_vs_c[upset_d_vs_c == F] <- 0
+
+pdf("20200311_Immune_upset.pdf")
+upset(upset_d_vs_c, nsets = 25, text.scale = 1, show.numbers = F, nintersects = 60)
+dev.of()
 
