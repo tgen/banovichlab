@@ -1,0 +1,21 @@
+docker run -it --rm -v "/Users/agutierrez:/Users/agutierrez" \
+    gregoryschwartz/too-many-cells:0.2.2.0 make-tree \
+  --matrix-path /Users/agutierrez/data/both_matrix/filtered_feature_bc_matrix/ \
+  --output /Users/agutierrez/both_out \
+  > clusters.csv
+
+  docker run -it --rm -v "/Users/agutierrez:/Users/agutierrez" \
+    gregoryschwartz/too-many-cells:0.2.2.0 make-tree \
+  --prior /Users/agutierrez/both_out/ \
+  --labels-file /Users/agutierrez/data/both_matrix/filtered_feature_bc_matrix/lables.csv \
+  --min-size 150 \
+  --draw-collection "PieChart" \
+  --output /Users/agutierrez/both_out/labled/ \
+  > clusters.csv
+
+  docker run -it --rm -v "/Users/agutierrez:/Users/agutierrez" \
+    gregoryschwartz/too-many-cells:0.2.2.0 paths \
+  --prior /Users/agutierrez/both_out/ \
+  --labels-file /Users/agutierrez/data/both_matrix/filtered_feature_bc_matrix/lables.csv \
+  --bandwidth 3 \
+  --output /Users/agutierrez/both_out/paths/
