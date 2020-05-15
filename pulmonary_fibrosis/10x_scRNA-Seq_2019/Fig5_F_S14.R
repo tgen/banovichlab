@@ -33,9 +33,9 @@ getwd()
 # =====================================
 # Read in the object(s) 
 # =====================================
-at2 <- readRDS("/scratch/agutierrez/IPF/R/Seurat/20200310/Final_AT2.rds")
-scgb3a2 <- readRDS("/scratch/agutierrez/IPF/R/Seurat/20200310/Final_SCGB3A2.rds")
-at1 <- readRDS("/scratch/agutierrez/IPF/R/Seurat/20200306/AT2_AT1_control.rds")
+at2 <- readRDS("/Volumes/scratch/agutierrez/IPF/R/Seurat/20200310/Final_AT2.rds")
+scgb3a2 <- readRDS("/Volumes/scratch/agutierrez/IPF/R/Seurat/20200310/Final_SCGB3A2.rds")
+at1 <- readRDS("/Volumes/scratch/agutierrez/IPF/R/Seurat/20200306/AT2_AT1_control.rds")
 
 # =====================================
 # Make subsets 
@@ -61,7 +61,7 @@ sub_slingshot1 <- slingshot(sub_sce1, clusterLabels = "celltype", reducedDim = '
 sub_slingshot2 <- slingshot(sub_sce2, clusterLabels = "celltype", reducedDim = 'UMAP',
                             start.clus="SCGB3A2+", end.clus="KRT5-/KRT17+")
 
-sub_slingshot3 <- readRDS("/scratch/agutierrez/IPF/R/Seurat/20200306/AT2_AT1_control_slingshot.rds")                       
+sub_slingshot3 <- readRDS("/Volumes/scratch/agutierrez/IPF/R/Seurat/20200306/AT2_AT1_control_slingshot.rds")                       
 
 # =====================================
 # Set the pseudotime variable
@@ -107,14 +107,19 @@ temp3$ct = at1@meta.data$celltype[order(t3)]
 # FIGURE 5F
 # ======================================
 # Loess plot
-pdf(file = "Fig5F_loess_final_genes.pdf", width = 16, height = 8.5)
+update_geom_defaults("line", list(colour = 'blue', linetype = 0.5))
+theme_set(theme_grey(base_size=6))
+pdf(file = "Fig5F_loess_final_genes.pdf", width = 3, height = 1.5)
 for (i in 1:length(gene.list)) {
   print(paste(i, gene.list[i], sep = "_"))
-  p1 <- ggplot(temp3, aes_string(y = gene.list[i] , x = temp3[, (ncol(temp3) -1)])) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, plot.val[i])) 
+  p1 <- ggplot(temp3, aes_string(y = gene.list[i] , x = temp3[, (ncol(temp3) -1)])) + 
+    geom_smooth(method=loess, level=1-1e-10) + coord_cartesian(ylim = c(0, plot.val[i])) + scale_linetype()
   #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend())
-  p2 <- ggplot(temp1, aes_string(y = gene.list[i], x = temp1[, (ncol(temp1) -1)])) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, plot.val[i])) 
+  p2 <- ggplot(temp1, aes_string(y = gene.list[i], x = temp1[, (ncol(temp1) -1)])) + 
+    geom_smooth(method = loess, level=1-1e-10) + coord_cartesian(ylim = c(0, plot.val[i])) 
   #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend())
-  p3 <- ggplot(temp2, aes_string(y = gene.list[i], x = temp2[, (ncol(temp2) -1)])) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, plot.val[i])) 
+  p3 <- ggplot(temp2, aes_string(y = gene.list[i], x = temp2[, (ncol(temp2) -1)])) + 
+    geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, plot.val[i])) 
   #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend())
   grid.arrange(p1,p2,p3, ncol=3)
 }
@@ -141,6 +146,22 @@ dev.off()
 gene.list <- c("SFTPC","AGER","KRT17","SCGB3A2","COL1A1")
 plot.val <- c(8.0, 1.0, 3.0, 8.0, 2.0)
 
+loess_data1 <- as.data.frame(sub1@assays$SCT@data[gene.list, ])
+loess_data1 <- loess_data1[, order(t1)]
+temp1 <- loess_data1
+temp1 <- t(temp1)
+temp1 <- as.data.frame(temp1)
+temp1$index <- 1:nrow(temp1)
+temp1$ct <- sub1@meta.data$celltype[order(t1)]
+
+loess_data2 <- as.data.frame(sub2@assays$SCT@data[gene.list, ])
+loess_data2 <- loess_data2[, order(t2)]
+temp2 <- loess_data2
+temp2 <- t(temp2)
+temp2 <- as.data.frame(temp2)
+temp2$index <- 1:nrow(temp2)
+temp2$ct = sub2@meta.data$celltype[order(t2)]
+
 # Make the plots
 interleave <- function(a, b) {
   shorter <- if (length(a) < length(b)) a else b
@@ -158,14 +179,16 @@ interleave <- function(a, b) {
   return(c(a, b)[index])
 }
 
-pdf(file = "FigS14_loess.pdf", width = 16, height = 8.5)
+pdf(file = "20200514_FigS14_loess_original.pdf", width = 16, height = 8.5)
 plot_list1 <- list()
 plot_list2 <- list()
 for (i in 1:length(gene.list)) {
   print(paste(i, gene.list[i], sep = "_"))
-  plot_list1[[i]] <- ggplot(temp1, aes_string(y = gene.list[i], x = temp1[, (ncol(temp1) -1)])) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, plot.val[i])) 
+  plot_list1[[i]] <- ggplot(temp1, aes_string(y = gene.list[i], x = temp1[, (ncol(temp1) -1)])) + 
+    geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, plot.val[i])) 
   #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend())
-  plot_list2[[i]] <- ggplot(temp2, aes_string(y = gene.list[i], x = temp2[, (ncol(temp2) -1)])) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, plot.val[i])) 
+  plot_list2[[i]] <- ggplot(temp2, aes_string(y = gene.list[i], x = temp2[, (ncol(temp2) -1)])) + 
+    geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, plot.val[i])) 
   #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend())
 }
 plot_list <- interleave(plot_list1, plot_list2)

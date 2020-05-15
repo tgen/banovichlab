@@ -23,7 +23,7 @@ library(gplots)
 library(stats)
 
 # Read in the objects 
-sub <- readRDS("/Volumes/scratch/agutierrez/IPF/R/Seurat/20200309/4pop_ctrl_and_disease.rds")
+sub <- readRDS("/Volumes/scratch/agutierrez/IPF/R/Seurat/20200513/4pop_ctrl_and_disease.rds")
 sub1 <- subset(sub, cells=rownames(sub@meta.data[sub@meta.data$celltype %in% c("AT2", "Transitional AT2","AT1"),]))
 sub2 <- subset(sub, cells=rownames(sub@meta.data[sub@meta.data$celltype %in% c("SCGB3A2+", "Transitional AT2","AT1"),]))
 
@@ -91,24 +91,28 @@ temp2$index = 1:nrow(temp2)
 temp2$ct = sub2@meta.data$celltype[order(t2)]
 
 # Make the Loess plot
-p1 <- ggplot(temp1, aes(y = AGER, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, 4.2)) 
+p1 <- ggplot(temp1, aes(y = AGER, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, 4.2)) 
 #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend()) 
-p2 <- ggplot(temp1, aes(y = ABCA3, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, 1.6)) 
+p2 <- ggplot(temp1, aes(y = ABCA3, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, 1.6)) 
 #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend())
-p3 <- ggplot(temp1, aes(y = SFTPC, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, 7)) 
+p3 <- ggplot(temp1, aes(y = SFTPC, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, 7)) 
 #  geom_tile(aes(x = index, y= 0, color = ct, height = .3, fill=ct)) + guides(fill=guide_legend())
-p4 <- ggplot(temp1, aes(y = SCGB3A2, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, 6)) +
-  geom_tile(aes(x = index, y= 0, color = ct, height = .2, fill=ct)) + guides(fill=guide_legend())
+p4 <- ggplot(temp1, aes(y = SCGB3A2, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, 6)) 
+ # geom_tile(aes(x = index, y= 0, color = ct, height = .2, fill=ct)) + guides(fill=guide_legend())
 
-p5 <- ggplot(temp2, aes(y = AGER, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, 4.2)) 
+p5 <- ggplot(temp2, aes(y = AGER, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, 4.2)) 
 #  geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill =ct)) + guides(fill=guide_legend())
-p6 <- ggplot(temp2, aes(y = ABCA3, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, 1.6)) 
+p6 <- ggplot(temp2, aes(y = ABCA3, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, 1.6)) 
 # geom_tile(aes(x = index, y= 0, color = ct, height = .1, fill=ct)) + guides(fill=guide_legend())
-p7 <- ggplot(temp2, aes(y = SFTPC, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0, 7)) 
+p7 <- ggplot(temp2, aes(y = SFTPC, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0, 7)) 
 # geom_tile(aes(x = index, y= 0, color = ct, height = .3, fill=ct)) + guides(fill=guide_legend())
-p8 <- ggplot(temp2, aes(y = SCGB3A2, x = index)) + geom_smooth(method = loess) + coord_cartesian(ylim = c(0,6)) +
- geom_tile(aes(x = index, y= 0, color = ct, height = .2, fill=ct)) + guides(fill=guide_legend())
-
-marrangeGrob(grobs = list(p1,p5,p2,p6,p3,p7,p4,p8), ncol=2, nrow = 1)
+p8 <- ggplot(temp2, aes(y = SCGB3A2, x = index)) + geom_smooth(method = loess,level=1-1e-10) + coord_cartesian(ylim = c(0,6)) 
+# geom_tile(aes(x = index, y= 0, color = ct, height = .2, fill=ct)) + guides(fill=guide_legend())
+  
+pdf(file = "Fig3B_loess_final.pdf", width = 11, height = 8.5)
+p1 + p5
+p2 + p6
+p3 + p7
+p4 + p8
 dev.off()
 
