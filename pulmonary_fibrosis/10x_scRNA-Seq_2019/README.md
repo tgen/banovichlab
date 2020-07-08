@@ -1,5 +1,5 @@
 # 10x Single-Cell RNA Seq 2019 Release
-This repo contains the code used for analysis in our paper "Single-cell RNA-sequencing reveals profibrotic roles of distinct epithelial and mesenchymal lineages in pulmonary fibrosis" which is available via bioRxiv [here](https://www.biorxiv.org/content/10.1101/753806v1 "here").
+This repo contains the code used for analysis in our paper "Single-cell RNA-sequencing reveals profibrotic roles of distinct epithelial and mesenchymal lineages in pulmonary fibrosis" which has been published in Science Advances and is available [here](https://advances.sciencemag.org/content/6/28/eaba1972 "here").
 
 
 ---
