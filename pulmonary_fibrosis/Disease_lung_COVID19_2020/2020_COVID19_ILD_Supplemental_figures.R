@@ -102,8 +102,16 @@ colnames(data_tableS4) <- c("Ident","CellType","Diagnosis","Total","Count")
 data_tableS4$Percent <- data_tableS4$Count/data_tableS4$Total * 100
 data_tableS4$geneid <- "FURIN"
 
+# NRP1+ cells
+sub5 <- subset(ild, NRP1 > 0, slot = "counts")
+tableS5 <- as.data.frame(table(sub5$orig.ident,sub5$CellType1, sub5$Diagnosis2))
+data_tableS5 <- merge(table1, tableS5, by = c("Var1", "Var2","Var3"))
+colnames(data_tableS5) <- c("Ident","CellType","Diagnosis","Total","Count")
+data_tableS5$Percent <- data_tableS5$Count/data_tableS5$Total * 100
+data_tableS5$geneid <- "NRP1"
+
 # Combine all tables and perform dplyr mean calculations
-onion <- rbind(data_tableS1, data_tableS2, data_tableS3, data_tableS4)
+onion <- rbind(data_tableS1, data_tableS5, data_tableS2, data_tableS3, data_tableS4)
 onion_means = onion %>% group_by(geneid, CellType, Diagnosis) %>% dplyr::summarise(Mean = mean(Percent, na.rm = T),
                                                                                    n=n(),
                                                                                    sd = sd(Percent, na.rm = T),
@@ -128,7 +136,11 @@ furin_total <- as.data.frame(table(sub4@meta.data$CellType1, sub4$Diagnosis2))
 colnames(furin_total) <- c("CellType","Diagnosis","Total")
 furin_total$geneid <- "FURIN"
 
-total <- rbind(bsg_total, ctsl_total, hspa5_total, furin_total)
+nrp1_total <- as.data.frame(table(sub5@meta.data$CellType1, sub5$Diagnosis2))
+colnames(nrp1_total) <- c("CellType","Diagnosis","Total")
+nrp1_total$geneid <- "NRP1"
+
+total <- rbind(bsg_total, nrp1_total, ctsl_total, hspa5_total, furin_total)
 
 onion_means <- merge(onion_means, total, by = c("CellType","geneid", "Diagnosis"))
 
@@ -141,9 +153,9 @@ sp_tukey <- onion %>% group_by(CellType,geneid) %>%
   tukey_hsd(Percent ~ Diagnosis)
 
 # Save the table for supplemental info
-write.csv (onion, file = "20200805_FigS2_percentage.allCT.csv")
-write.csv (onion_means, file = "20200805_FigS2_percentage_means.allCT.csv")
-write.csv (as.data.frame(sp_tukey), file = "20200805_FigS2_tukey.allCT.csv")
+write.csv (onion, file = "20201123_FigS2_percentage.allCT.csv")
+write.csv (onion_means, file = "20201123_FigS2_percentage_means.allCT.csv")
+write.csv (as.data.frame(sp_tukey), file = "20201123_FigS2_tukey.allCT.csv")
 
 # Order CT on the y axis
 cell_order <- c("Lymphatic Endothelial Cells","Vascular Endothelial Cells","AT1",
@@ -157,7 +169,7 @@ cell_order <- c("Lymphatic Endothelial Cells","Vascular Endothelial Cells","AT1"
 onion_means$CellType <- factor(onion_means$CellType, 
                                levels=cell_order)
 
-gene_order <- c("BSG","HSPA5","CTSL","FURIN")
+gene_order <- c("BSG","NRP1","HSPA5","CTSL","FURIN")
 onion_means$geneid <- factor(onion_means$geneid, levels = gene_order)
 
 # Plotting 
@@ -205,8 +217,16 @@ colnames(data_tableS3) <- c("Ident","CellType","Diagnosis","Total","Count")
 data_tableS3$Percent <- data_tableS3$Count/data_tableS3$Total * 100
 data_tableS3$geneid <- "HSPA5+/FURIN+"
 
+# NRP1+ FURIN+ cells
+sub4 <- subset(ild, NRP1 > 0 & FURIN > 0, slot = "counts") 
+tableS4 <- as.data.frame(table(sub4$orig.ident, sub4$CellType1, sub4$Diagnosis2))
+data_tableS4 <- merge(table1, tableS4, by = c("Var1", "Var2", "Var3"))
+colnames(data_tableS4) <- c("Ident","CellType","Diagnosis","Total","Count")
+data_tableS4$Percent <- data_tableS4$Count/data_tableS4$Total * 100
+data_tableS4$geneid <- "NRP1+/FURIN+"
+
 # Combine all tables and perform dplyr mean calculations
-onion <- rbind(data_tableS1, data_tableS2, data_tableS3)
+onion <- rbind(data_tableS1, data_tableS2, data_tableS3, data_tableS4)
 onion_means = onion %>% group_by(geneid, CellType, Diagnosis) %>% 
   dplyr::summarise(Mean = mean(Percent, na.rm = T),
                    n=n(),
@@ -229,7 +249,11 @@ hspa5_total <- as.data.frame(table(sub3@meta.data$CellType1, sub3$Diagnosis2))
 colnames(hspa5_total) <- c("CellType","Diagnosis","Total")
 hspa5_total$geneid <- "HSPA5+/FURIN+"
 
-total <- rbind(ace2_total,bsg_total,hspa5_total)
+nrp1_total <- as.data.frame(table(sub4@meta.data$CellType1, sub4$Diagnosis2))
+colnames(nrp1_total) <- c("CellType","Diagnosis","Total")
+nrp1_total$geneid <- "NRP1+/FURIN+"
+
+total <- rbind(ace2_total,bsg_total,hspa5_total, nrp1_total)
 
 onion_means <- merge(onion_means, total, by = c("CellType","geneid", "Diagnosis"))
 
@@ -242,20 +266,21 @@ dp_tukey <- onion %>% group_by(CellType,geneid) %>%
   tukey_hsd(Percent ~ Diagnosis)
 
 # Save the table for supplemental info
-write.csv (onion, file = "20200803_FigS3_DP_FURIN_percentage.allCT.csv")
-write.csv (onion_means, file = "20200803_FigS3_DP_FURIN_percentage_means.allCT.csv")
-write.csv(as.data.frame(dp_tukey), file = "20200803_DP_Epi_FURIN_tukey.csv")
+write.csv (onion, file = "20201124_FigS3_DP_FURIN_percentage.allCT.csv")
+write.csv (onion_means, file = "20201124_FigS3_DP_FURIN_percentage_means.allCT.csv")
+write.csv(as.data.frame(dp_tukey), file = "20201124_DP_Epi_FURIN_tukey.csv")
 
 # Make a Venn Diagram for all CT
 set1 <- rownames(sub1@meta.data)
 set2 <- rownames(sub2@meta.data)
 set3 <- rownames(sub3@meta.data)
+set4 <- rownames(sub4@meta.data)
 
-myCol <- brewer.pal(3, "Pastel2")
+myCol <- brewer.pal(4, "Pastel2")
 
 temp <- venn.diagram(
-  x = list(set1, set2, set3),
-  category.names = c("ACE2+ FURIN+" , "BSG+ FURIN+ " , "HSPA5+ FURIN+"),
+  x = list(set1, set2, set3, set4),
+  category.names = c("ACE2+ FURIN+" , "BSG+ FURIN+ " , "HSPA5+ FURIN+","NRP1+ FURIN+"),
   filename = NULL,
   resolution = 500,
   compression = "lzw",
@@ -288,7 +313,7 @@ ggplot(onion_means, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   theme(axis.text.y=element_text(size=10)) + 
   scale_y_continuous()+
   coord_flip() + 
-  ylab("Fraction of cells") 
+  ylab("Percentage of cells") 
 
 # ==============================================================================
 # Supplementary Figure 3B - Double positive cells percentage (CTSL)
@@ -320,8 +345,16 @@ colnames(data_tableS3) <- c("Ident","CellType","Diagnosis","Total","Count")
 data_tableS3$Percent <- data_tableS3$Count/data_tableS3$Total * 100
 data_tableS3$geneid <- "HSPA5+/CTSL+"
 
+# NRP1+ CTSL+ cells
+sub4 <- subset(ild, NRP1 > 0 & CTSL > 0, slot = "counts") 
+tableS4 <- as.data.frame(table(sub4$orig.ident, sub4$CellType1, sub4$Diagnosis2))
+data_tableS4 <- merge(table1, tableS4, by = c("Var1", "Var2", "Var3"))
+colnames(data_tableS4) <- c("Ident","CellType","Diagnosis","Total","Count")
+data_tableS4$Percent <- data_tableS4$Count/data_tableS4$Total * 100
+data_tableS4$geneid <- "NRP1+/CTSL+"
+
 # Combine all tables and perform dplyr mean calculations
-onion <- rbind(data_tableS1, data_tableS2, data_tableS3)
+onion <- rbind(data_tableS1, data_tableS2, data_tableS3, data_tableS4)
 onion_means = onion %>% group_by(geneid, CellType, Diagnosis) %>% dplyr::summarise(Mean = mean(Percent, na.rm = T),
                                                                                    n=n(),
                                                                                    sd = sd(Percent, na.rm = T),
@@ -342,7 +375,11 @@ hspa5_total <- as.data.frame(table(sub3@meta.data$CellType1, sub3$Diagnosis2))
 colnames(hspa5_total) <- c("CellType","Diagnosis","Total")
 hspa5_total$geneid <- "HSPA5+/CTSL+"
 
-total <- rbind(ace2_total,bsg_total,hspa5_total)
+nrp1_total <- as.data.frame(table(sub4@meta.data$CellType1, sub4$Diagnosis2))
+colnames(nrp1_total) <- c("CellType","Diagnosis","Total")
+nrp1_total$geneid <- "NRP1+/CTSL+"
+
+total <- rbind(ace2_total,bsg_total,hspa5_total, nrp1_total)
 
 onion_means <- merge(onion_means, total, by = c("CellType","geneid", "Diagnosis"))
 
@@ -355,20 +392,21 @@ dp_tukey <- onion %>% group_by(CellType,geneid) %>%
   tukey_hsd(Percent ~ Diagnosis)
 
 # Save the table for supplemental info
-write.csv (onion, file = "20200805_FigS3_DP_CTSL_percentage.allCT.csv")
-write.csv (onion_means, file = "20200805_FigS3_DP_CTSL_percentage_means.allCT.csv")
-write.csv(as.data.frame(dp_tukey), file = "20200805_DP_Epi_CTSL_tukey.csv")
+write.csv (onion, file = "20201124_FigS3_DP_CTSL_percentage.allCT.csv")
+write.csv (onion_means, file = "20201124_FigS3_DP_CTSL_percentage_means.allCT.csv")
+write.csv(as.data.frame(dp_tukey), file = "20201124_DP_Epi_CTSL_tukey.csv")
 
 # Make a Venn Diagram for all CT
 set1 <- rownames(sub1@meta.data)
 set2 <- rownames(sub2@meta.data)
 set3 <- rownames(sub3@meta.data)
+set4 <- rownames(sub4@meta.data)
 
-myCol <- brewer.pal(3, "Pastel2")
+myCol <- brewer.pal(4, "Pastel2")
 
 temp <- venn.diagram(
-  x = list(set1, set2, set3),
-  category.names = c("ACE2+ CTSL+" , "BSG+ CTSL+ " , "HSPA5+ CTSL+"),
+  x = list(set1, set2, set3,set4),
+  category.names = c("ACE2+ CTSL+" , "BSG+ CTSL+ " , "HSPA5+ CTSL+", "NRP1+ CTSL+"),
   filename = NULL,
   resolution = 500,
   compression = "lzw",
@@ -401,12 +439,38 @@ ggplot(onion_means, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   theme(axis.text.y=element_text(size=10)) + 
   scale_y_continuous()+
   coord_flip() + 
-  ylab("Fraction of cells") 
+  ylab("Percentage of cells") 
 
 # ==============================================================================
 # Figure 2C and Figure S4: SARS-CoV-2 gene correlation analysis
 # ==============================================================================
 epi <- readRDS("/scratch/lbui/Covid19_Seurat/20200708_Epi_annotated_noDoublets.rds")
+
+library(gridExtra)
+library(ggplot2)
+
+interleave <- function(a, b) { 
+  
+  shorter <- if (length(a) < length(b)) a else b
+  longer  <- if (length(a) >= length(b)) a else b
+  
+  slen <- length(shorter)
+  llen <- length(longer)
+  
+  index.short <- (1:slen) + llen
+  names(index.short) <- (1:slen)
+  
+  lindex <- (1:llen) + slen
+  names(lindex) <- 1:llen
+  
+  sindex <- 1:slen
+  names(sindex) <- 1:slen
+  
+  index <- c(sindex, lindex)
+  index <- index[order(names(index))]
+  
+  return(c(a, b)[index])
+}
 
 # Separate by disease groups
 at2 <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$CellTypeSimple == "AT2",]))
@@ -415,7 +479,7 @@ sub2 <- subset(at2, cells=rownames(at2@meta.data[at2@meta.data$Diagnosis2 == "CO
 sub3 <- subset(at2, cells=rownames(at2@meta.data[at2@meta.data$Diagnosis2 == "IPF",]))
 sub4 <- subset(at2, cells=rownames(at2@meta.data[at2@meta.data$Diagnosis2 == "Other-ILD",]))
 
-gene1 <- c("ACE2","BSG","HSPA5")
+gene1 <- c("NRP1") #change name correspondingly
 gene2 <- c("TMPRSS2","CTSL","FURIN","ADAM17","ITGB6")
 
 plot_list1 <- list()
@@ -598,10 +662,57 @@ plot_list <- interleave(plot_lista, plot_listb)
 
 plot_list <- plyr::compact(plot_list)
 
-pdf(file = paste("20200720_Correlation_plot_SCT_AT2_diseasegroups3.pdf", 
+pdf(file = paste("20201123_Correlation_plot_SCT_AT2_diseasegroups3.pdf", 
                  sep = "_"), width = 8.5, height = 11)
 grid.arrange(grobs = plot_list, ncol = 4)
 dev.off()
 
+# ==============================================================================
+# Supplementary Table 4: Count Matrix for unpublished dataset
+# ==============================================================================
+# Load the object
+ild <- readRDS("/scratch/lbui/Covid19_Seurat/20200709_ILD_noDoublets.rds")
 
+# Extract out gene count matrix for genes used in the study
+genelist <- c("ACE2","BSG","TMPRSS2","CTSL","CTSB","FURIN","PCSK5","PCSK7",
+              "ADAM17","PIKFYVE","TPCN2","AGT","ACE","ITGB6","C1QA","C1QB",
+              "C1QC","C2","C3","C4B","IFNAR1","IFNAR2","IFNGR1","NRP1","HSPA5",
+              "IFNGR2","PTPN11","EIF2AK2","EIF2AK3","CXCL1","TRIM27","TRIM28","NFKB1",
+              "RNF41","JUN","SOCS1","SOCS2","CSF2","CSF3","ICAM1","CD47",
+              "CD44","CCL2","CCL3","FGA","FGG","ATG5","ATG7","BECN1","SQSTM1",
+              "MAP1LC3A","MAP1LC3B","ATF6","ERN1","MUC5B","ISG15", "IFI44", "IFI27", 
+              "CXCL10", "RSAD2", "IFIT1", "IFI44L", "CCL8", "XAF1", "GBP1", "IRF7", 
+              "CEACAM1","IFNB1","IFNG","IFNAR1","IFNAR2","IFNGR1","IFNGR2","TRIM28",
+              "TLR7","MX1","STAT1","TBK1","CCR2","CXCL10","IFI6","LY6E",
+              "TRIM27","TNF","IL1B","IL6","IL6R","IL6ST","TGFB1","NFKB1",
+              "NFKB2","CEBPB","AREG","FCGR3A","IL10","IFITM1","IFITM3","ISG20",
+              "CD163","IL1R2","MRC1","HAVCR2","LGALS9","S100A8","S100A9",
+              "HLA-DRA", "HLA-DQA1", "HLA-DQA2", "HLA-DPA1", "HLA-DRB1", "HLA-DPB1", 
+              "HLA-DQB2", "HLA-DRB5", "HLA-DQB1", "HLA-DMA", "HLA-DMB","IL6R","IL6ST",
+              "SOCS1","SOCS2","CCL2","CCL3","CXCL8","AREG","FCGR3A",
+              "S100A8","S100A9","GZMB","LAG3","ISG15","IFI44","IFI27","CXCL10",
+              "RSAD2","IFIT1","IFI44L","CCL8","XAF1","GBP1","IRF7","CEACAM1",
+              "ARID5A","SOCS3","PIM1","BCL3","BATF","MYC","PRF1", "GZMH", "IFNG",
+              "NKG7", "KLRG1", "PRF1","GNLY","GZMB","GZMK","LAG3","TIGIT","PDCD1",
+              "CTLA4","HAVCR2","TOX","PRDM1","MAF")
+genelist <- unique(genelist)
+
+# Subset out only the unpublished samples
+samples <- c("TILD041" ,"TILD051" ,"VUILD79" ,"VUILD77", "VUHD84" , "TILD049",
+             "VUILD74","VUILD75","VUILD76","VUILD78","VUILD81", "THD0006","TILD013",
+             "TILD039","TILD037","VUHD072","VUILD67","VUILD68","VUHD073","VUILD69",
+             "VUHD075","VUHD078","VUHD080","THD0007","THD0008","THD0009","TILD050",
+             "TILD055","TILD062","VUILD73","TILD063","TILD059","VUHD85","THD0012",
+             "VUILD80" ,"VU_COPD_29","VU_COPD_30","VU_COPD_34","VU_COPD_38")
+
+# Subset out only those genes
+ild.df <- subset(ild, features = genelist, 
+                 cells = rownames(ild@meta.data[ild@meta.data$Sample_Name %in% samples, ]))
+
+saveRDS(ild.df, file = "20201201_ILD_COVID_unpublished39samples.rds")
+
+# Export out the count matrix
+write.table(as.matrix(GetAssayData(object = ild.df, slot = "counts")), 
+            file = "TableS4_ILD_COVID_unpublished39samples_counts.csv", 
+            sep = ',', row.names = T, col.names = T, quote = F)
 

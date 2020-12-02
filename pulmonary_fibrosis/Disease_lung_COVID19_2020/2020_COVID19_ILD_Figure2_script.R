@@ -155,7 +155,7 @@ writeLines(binomtest, con = file("20200903_Epi_heatmap_binomtest_disease_control
 # Figure 2B: AddModuleScore for SARS-CoV-2 entry genes
 # ==============================================================================
 # AddModuleScore for SARS-CoV-2 genes
-entry.gene <- list(c("ACE2","BSG","HSPA5","TMPRSS2","CTSL","FURIN","ADAM17"))
+entry.gene <- list(c("ACE2","BSG","HSPA5","TMPRSS2","CTSL","FURIN","ADAM17","NRP1"))
 entry.gene2 <- list(c("ACE2","TMPRSS2","CTSL","FURIN","ADAM17")) # Figure S5B
 
 epi <- AddModuleScore(object = epi, features = entry.gene, 
@@ -179,7 +179,7 @@ entry_tukey <- entry_data %>% group_by(CellType) %>%
   na.omit()%>%
   tukey_hsd(Scores ~ Diagnosis)
 
-write.csv(as.data.frame(entry_tukey), file = "20200908_Epi_entryscore1_Tukey.csv")
+write.csv(as.data.frame(entry_tukey), file = "20201123_Epi_entryscore1_Tukey.csv")
 
 ## Boxplot
 celltype.plot <-  c("AT1","AT2","Transitional AT2","KRT5-/KRT17+","Goblet Cells",
@@ -190,9 +190,9 @@ entry_data.df$CellType <- factor(entry_data.df$CellType, # reorganize x-axis ord
                                  levels=celltype.plot)
 
 ggplot(entry_data.df,aes(x=CellType, y=Scores, fill=Diagnosis)) +
-  geom_boxplot(outlier.size = -1) + 
+  geom_boxplot(outlier.size = 0) + 
   ylim(-0.5,0.75) +
-  ggtitle ("SARS-CoV-2 entry gene scores, with BSG, HSPA5") +
+  ggtitle ("SARS-CoV-2 entry gene scores, with BSG, HSPA5, NRP1") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust=1)) 
 

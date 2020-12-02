@@ -169,10 +169,10 @@ write.csv(as.data.frame(ace2_tukey), file = "20201013_ACE2_Epi_tukey.csv")
 onion_meansB1$Diagnosis <- factor(onion_meansB1$Diagnosis,
                                   levels=c("Other-ILD","IPF","COPD","Control"))
 ggplot(onion_meansB1, aes(x=CellType, y= Mean, fill = Diagnosis)) +
-  geom_bar(stat="identity",position='dodge', width = 0.8) +
+  geom_bar(stat="identity",position=position_dodge2(width = 0.8, preserve="single")) +
   theme_bw() +
   geom_errorbar(aes(ymin=Mean-se, ymax=Mean+se), width=.2,
-                position=position_dodge(.8)) +
+                position=position_dodge(0.8)) +
   geom_text(aes(label = paste(Total)), size = 3, hjust = -0.5,
             position = position_dodge(width = 1),inherit.aes = TRUE) +
   theme(axis.text.x=element_text(size=10)) +
@@ -265,13 +265,21 @@ colnames(data_tableS2) <- c("Ident","CellType","Diagnosis","Total","Count")
 data_tableS2$Percent <- data_tableS2$Count/data_tableS2$Total * 100
 data_tableS2$geneid <- "BSG+/TMPRSS2+"
 
-# HSPA5+ TMPRSS2+ cells
-sub3 <- subset(ild, HSPA5 > 0 & TMPRSS2 > 0, slot = "counts") 
+# NRP1+ TMPRSS2+ cells
+sub3 <- subset(ild, NRP1 > 0 & TMPRSS2 > 0, slot = "counts") 
 tableS3 <- as.data.frame(table(sub3$orig.ident,sub3$CellType2, sub3$Diagnosis2))
 data_tableS3 <- merge(table1, tableS3, by = c("Var1", "Var2", "Var3"))
 colnames(data_tableS3) <- c("Ident","CellType","Diagnosis","Total","Count")
 data_tableS3$Percent <- data_tableS3$Count/data_tableS3$Total * 100
-data_tableS3$geneid <- "HSPA5+/TMPRSS2+"
+data_tableS3$geneid <- "NRP1+/TMPRSS2+"
+
+# HSPA5+ TMPRSS2+ cells
+sub4 <- subset(ild, HSPA5 > 0 & TMPRSS2 > 0, slot = "counts") 
+tableS4 <- as.data.frame(table(sub4$orig.ident,sub4$CellType2, sub4$Diagnosis2))
+data_tableS4 <- merge(table1, tableS4, by = c("Var1", "Var2", "Var3"))
+colnames(data_tableS4) <- c("Ident","CellType","Diagnosis","Total","Count")
+data_tableS4$Percent <- data_tableS4$Count/data_tableS4$Total * 100
+data_tableS4$geneid <- "HSPA5+/TMPRSS2+"
 
 # Combine all tables and perform dplyr mean calculations
 onion <- rbind(data_tableS1, data_tableS2, data_tableS3)
@@ -291,11 +299,11 @@ bsg_total <- as.data.frame(table(sub2@meta.data$CellType2, sub2$Diagnosis2))
 colnames(bsg_total) <- c("CellType","Diagnosis","Total")
 bsg_total$geneid <- "BSG+/TMPRSS2+"
 
-hspa5_total <- as.data.frame(table(sub3@meta.data$CellType2, sub3$Diagnosis2))
-colnames(hspa5_total) <- c("CellType","Diagnosis","Total")
-hspa5_total$geneid <- "HSPA5+/TMPRSS2+"
+nrp1_total <- as.data.frame(table(sub3@meta.data$CellType2, sub3$Diagnosis2))
+colnames(nrp1_total) <- c("CellType","Diagnosis","Total")
+nrp1_total$geneid <- "NRP1+/TMPRSS2+"
 
-total <- rbind(ace2_total,bsg_total,hspa5_total)
+total <- rbind(ace2_total,bsg_total,nrp1_total)
 
 onion_means <- merge(onion_means, total, by = c("CellType","geneid", "Diagnosis"))
 
@@ -311,9 +319,9 @@ dp_tukey <- onion %>% group_by(CellType,geneid) %>%
 dp_tukey <- as.data.frame(dp_tukey[dp_tukey$CellType %in% cells.used,])
 
 # Save all the files for supplemental info
-write.csv (onion, file = "20201013_FigS3_DP_percentage.allCT.csv")
-write.csv (onion_means, file = "20201013_FigS3_DP_percentage_means.allCT.csv")
-write.csv(dp_tukey, file = "20201013_DP_Epi_tukey.csv")
+write.csv (onion, file = "20201123_FigS3_DP_percentage.allCT.csv")
+write.csv (onion_means, file = "20201123_FigS3_DP_percentage_means.allCT.csv")
+write.csv(dp_tukey, file = "20201123_DP_TMPRSS2_tukey.csv")
 
 # -----------------------------------
 # Figure 1D: Venn Diagram for all CT
@@ -322,13 +330,14 @@ write.csv(dp_tukey, file = "20201013_DP_Epi_tukey.csv")
 set1 <- rownames(sub1@meta.data)
 set2 <- rownames(sub2@meta.data)
 set3 <- rownames(sub3@meta.data)
+set4 <- rownames(sub4@meta.data)
 
 # Make venn diagram using VennDiagram package
-myCol <- brewer.pal(3, "Pastel2")
+myCol <- brewer.pal(4, "Pastel2")
 
 temp <- venn.diagram(
-  x = list(set1, set2, set3),
-  category.names = c("ACE2+ TMPRSS2+" , "BSG+ TMPRSS2+ " , "HSPA5+ TMPRSS2+"),
+  x = list(set1, set2, set3, set4),
+  category.names = c("ACE2+ TMPRSS2+" , "BSG+ TMPRSS2+ " , "NRP1+ TMPRSS2+", "HSPA5+ TMPRSS2+"),
   filename = NULL,
   resolution = 500,
   compression = "lzw",
@@ -361,7 +370,7 @@ onion_means1 <- onion_means[onion_means$geneid == "ACE2+/TMPRSS2+",]
 onion_means1$Diagnosis <- factor(onion_means1$Diagnosis,
                                   levels=c("Other-ILD","IPF","COPD","Control"))
 ggplot(onion_means1, aes(x=CellType, y= Mean, fill = Diagnosis)) +
-  geom_bar(stat="identity",position='dodge', width = 0.8) +
+  geom_bar(stat="identity",position=position_dodge2(width = 0.8, preserve="single")) +
   theme_bw() +
   geom_errorbar(aes(ymin=Mean-se, ymax=Mean+se), width=.2,
                 position=position_dodge(.8)) +
@@ -374,13 +383,13 @@ ggplot(onion_means1, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   ylab("Percentage of ACE2+ TMPRSS2+ cells") 
 
 # ------------------------------------
-# Figure 1F: BSG+ TMPRSS2+ and HSPA5+ TMPRSS2+ cell fraction
+# Figure 1F: BSG+ TMPRSS2+ and NRP1+ TMPRSS2+ cell fraction
 # ------------------------------------
 onion_means2 <- onion_means[onion_means$geneid != "ACE2+/TMPRSS2+",]
 
 # Plotting 
 ggplot(onion_means2, aes(x=CellType, y= Mean, fill = Diagnosis)) +
-  geom_bar(stat="identity",position='dodge', width = 0.8) +
+  geom_bar(stat="identity",position=position_dodge2(width = 0.8, preserve="single")) +
   facet_wrap(~geneid, scales = "free", ncol = 1, nrow = 2) +  
   theme_bw() +
   geom_errorbar(aes(ymin=Mean-se, ymax=Mean+se), width=.2,
