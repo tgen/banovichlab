@@ -39,7 +39,7 @@ library(rstatix)
 # ==============================================================================
 # Read in the Immune object 
 # ==============================================================================
-immune <- readRDS("/scratch/lbui/Covid19_Seurat/20200709_Immune_noDoublets.rds")
+immune <- readRDS("/scratch/lbui/Covid19_saved/20210204_Immune_noDoublets.rds")
 
 # ==============================================================================
 # Figure 3A: Immune cell proportion
@@ -94,7 +94,7 @@ res.aov <- data_table %>% group_by(CellType) %>%
   na.omit()%>%
   tukey_hsd(Percent ~ Diagnosis, p.adjust.method = "bonferroni") 
 
-write.csv(as.data.frame(res.aov), file = "20200730_Immune_cell_proportion_Tukey.csv")
+write.csv(as.data.frame(res.aov), file = "20210207_Immune_cell_proportion_Tukey.csv")
 
 # ==============================================================================
 # Figure 3B: Immune cell heatmap
@@ -110,8 +110,6 @@ for(i in 1:length(immune_list)){
   names(immune_list) <- lapply(immune_list, function(xx){paste(unique(xx@meta.data$CellType2))})
 }
 summary(immune_list)
-
-immune_list <- immune_list[names(immune_list) != "TRegs"]
 
 # Run DEG for Covid-19 candidate genes    
 genelist <- c("ACE2","TMPRSS2","CTSL","CTSB","FURIN","PCSK5","PCSK7","ADAM17",
@@ -134,9 +132,10 @@ heatmap_deg <- lapply(immune_list, function(xx){
               features = unique(genelist),
               test.use = "negbinom",
               latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
-              logfc.threshold = 0)
+              logfc.threshold = 0,
+              assay = "SCT")
 })
-saveRDS(heatmap_deg, file = "20200721_Immune_disease_control_deglist.rds")
+saveRDS(heatmap_deg, file = "20210208_Immune_disease_control_sctdeglist.rds")
 
 # Save the DEG files
 for(i in 1:length(immune_list)){
@@ -170,7 +169,6 @@ heatmap_data$id.y <- NULL
 heatmap_data$p_val <- NULL
 heatmap_data$id <- NULL
 rownames(heatmap_data) <- heatmap_data[,1]
-
 heatmap_data[,1] <- NULL
 
 ## Arrange row names according to the genelist order
@@ -182,53 +180,130 @@ res$weight <- NULL
 rownames(res) <- res$id
 res$id <- NULL
 
-## Binary heatmap
-color.palette  <- colorRampPalette(c("ivory2","orange1"))(n=1000)
+## Updated on 04/12/2021 to test only genes with significant p_adj_value (<=0.1)
+# Name the list with CT and create a new list with geneID and CT for p_adj_values
+heatmap_deg2 = heatmap_deg
+temp2=list()
+for(i in 1:length(heatmap_deg2)){
+  names(heatmap_deg2) <- lapply(immune_list, function(xx){paste(unique(xx@meta.data$CellType2))})
+  colnames(heatmap_deg2[[i]]) <- c("p_val","avg_log2FC","pct.1","pct.2",names(heatmap_deg2[i]))
+  temp2[[i]] <- heatmap_deg2[[i]][,4:5]
+  temp2[[i]]$GeneID <- rownames(temp2[[i]])
+}
+summary(heatmap_deg2) 
+summary(temp2)
+
+# Sort the dataframe based on geneID
+sorted_temp2 <- lapply(temp2, function(df){
+  df[order(df$GeneID),]
+})
+
+# Prepare data for the heatmap
+heatmap_data2 <- Reduce(
+  function(x, y) merge(x, y, by = "GeneID", all = T),
+  lapply(sorted_temp2, function(x) { x$id <- rownames(x); x }))
+heatmap_data2$pct.2.x <- NULL
+heatmap_data2$id.x <- NULL
+heatmap_data2$pct.2.y <- NULL
+heatmap_data2$id.y <- NULL
+heatmap_data2$pct.2 <- NULL
+heatmap_data2$id <- NULL
+rownames(heatmap_data2) <- heatmap_data2[,1]
+heatmap_data2[,1] <- NULL
+
+# Only keep the genes with p_adj_val <= 0.1 for the binomial test
+test1 <- ifelse(heatmap_data2 <= 0.1, TRUE, FALSE)
+test2 <- data.frame(matrix(nrow = 63, ncol = 12))
+i=0
+for(k in(1:length(rownames(test1)))){
+  i=i+1
+  test2[i,] <- ifelse(test1[i,]==TRUE, heatmap_data[i,],-1) #assign non-sig values to -1
+}
+colnames(test2) <- colnames(test1)
+rownames(test2) <- rownames(test1)
+
+test2[is.na(test2)] <- -2 # asign NA to -2
+binomtest <- capture.output(binom.test(length(test2[test2 > 0]), length(test2[test2 > -1]), .5,
+                                       conf.level = 0.95, alternative = "greater"))
+writeLines(binomtest, con = file("20210414_Immune_heatmap_binomtest_disease_control.txt"))
+
+# Binomial test for Macrophages only
+test2.df <- as.data.frame(cbind(rownames(test2),test2[,1]))
+rownames(test2.df) <- test2.df$V1
+test2.df$V1 <- NULL
+test2.df$V2 <- as.numeric(test2.df$V2)
+binomtest <- capture.output(binom.test(length(test2.df[test2.df > 0]), length(test2.df[test2.df > -1]), .5,
+                                       conf.level = 0.95, alternative = "greater"))
+writeLines(binomtest, con = file("20210416_Immune_macrophages_binomtest_disease_control.txt"))
+
+# Binomial test for cDCs only
+test2.df <- as.data.frame(cbind(rownames(test2),test2[,4]))
+rownames(test2.df) <- test2.df$V1
+test2.df$V1 <- NULL
+test2.df$V2 <- as.numeric(test2.df$V2)
+binomtest <- capture.output(binom.test(length(test2.df[test2.df > 0]), length(test2.df[test2.df > -1]), .5,
+                                       conf.level = 0.95, alternative = "greater"))
+writeLines(binomtest, con = file("20210416_Immune_cDCs_binomtest_disease_control.txt"))
+
+# Add border for significant p_val_adj
+test1 <- as.data.frame(test1)
+test1 <- test1 %>%
+  slice(match(genelist, rownames(test1)))
+test1 <- test1[c("B Cells","CD4 T Cells","CD8 T Cells","cDCs","Macrophages","Mast Cells",
+                 "Monocytes","NK Cells", "pDCs", "Plasma Cells",
+                 "Proliferating Macrophages","Proliferating T Cells")]
+test1$NA_counts <- rowSums(is.na(test1)) # count number of NA per gene
+test1 <- test1[test1$NA_counts <= 6,] # remove genes with NA in more than 50% of cell types
+test1$NA_counts <- NULL
+test1 <- apply(test1, 2, rev)
+test1 <- t(test1)
+nx=12
+ny=51
+makeRects <- function(tfMat,border){
+  cAbove = expand.grid(1:nx,1:ny)[tfMat,]
+  xl=cAbove[,1]-0.49
+  yb=cAbove[,2]-0.49
+  xr=cAbove[,1]+0.49
+  yt=cAbove[,2]+0.49
+  rect(xl,yb,xr,yt,border=border,lwd=1)
+}            #this is the function to make the rectangles/borders
+color.palette  <- colorRampPalette(c("ivory2","orange1","light grey"))(n=1000)
 res[res < 0] <- 0
 res[res > 0] <- 1
 res$NA_counts <- rowSums(is.na(res)) # count number of NA per gene
 res <- res[res$NA_counts <= 6,] # remove genes with NA in more than 50% of cell types
-
-heatmap.2(as.matrix(res[,-13]),
+res$NA_counts <- NULL
+res <- res[c("B Cells","CD4 T Cells","CD8 T Cells","cDCs","Macrophages",
+             "Mast Cells","Monocytes","NK Cells","pDCs","Plasma Cells",
+             "Proliferating Macrophages","Proliferating T Cells")]
+res[is.na(res)] <- 3
+heatmap.2(as.matrix(res),
           trace = "none",
           symbreaks = F,
           symm = F,
           symkey = F,
           scale = "none",
-          cexCol = 0.8,
-          cexRow = 0.6,
+          labCol = "",
+          cexRow = 0.3,
           col = color.palette,
-          main = "Immune logFC Disease vs. control per CT",
+          main = "Immune logFC Disease vs. Control per CT",
           Colv = F,
           Rowv = F,
-          margins = c(10, 9))
-
-binomtest <- capture.output(binom.test(length(res[res > 0]), length(res[res >= 0]), .5))
-writeLines(binomtest, con = file("20200626_Immune_heatmap_binomtest_ipf_up.txt"))
+          add.expr = text(x = seq_along(colnames(res)), y = -2, srt = 45,
+                          labels = colnames(res), xpd = TRUE,
+                          {makeRects(test1,"black")}))
 
 # ==============================================================================
 # Figure 3C: Boxplot with p-adj-value per diagnosis per CT
 # ==============================================================================
-# Split the ild object
-immune_list = list()
-j <- 0
-for(i in unique(immune@meta.data$CellType2)){
-  j <- j + 1
-  immune_list[[j]] <- subset(immune,
-                          cells = row.names(immune@meta.data[immune@meta.data$CellType2 == i, ]))
-}
-for(i in 1:length(immune_list)){
-  names(immune_list) <- lapply(immune_list, function(xx){paste(unique(xx@meta.data$CellType2))})
-}
-summary(immune_list)
-
 # Remove cell types with very few cells
 immune_list <- immune_list[names(immune_list) != "TRegs"] # not enough cells for neg binom model
 immune_list <- immune_list[names(immune_list) != "pDCs"] # not enough cells for neg binom model
 
 # Create a vector for genes of interest
 genelist <- c("IL6R","IL6ST","SOCS1","SOCS2","CCL2","CCL3","CXCL8","AREG","FCGR3A",
-              "S100A8","S100A9","GZMB","LAG3")
+              "S100A8","S100A9","GZMB","LAG3","CXCL9","CXCL10","CXCL11","CX3CL1",
+              "CXCL1","CCL13","CCL7","CCL4","CCL11")
 
 # Calculate p_adj_value using FindMarkers neg binom test
 copd_vs_control <- lapply(immune_list, function(xx){
@@ -242,7 +317,7 @@ copd_vs_control <- lapply(immune_list, function(xx){
                 features = genelist,
                 latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
                 logfc.threshold = 0,
-                assay="SCT")
+                assay="RNA")
   } 
   else{
     return(NULL)
@@ -260,7 +335,7 @@ ipf_vs_control <- lapply(immune_list, function(xx){
                 features = genelist,
                 latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
                 logfc.threshold = 0,
-                assay="SCT")
+                assay="RNA")
   } 
   else{
     return(NULL)
@@ -279,7 +354,7 @@ other_vs_control <- lapply(immune_list, function(xx){
                 latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
                 logfc.threshold = 0,
                 min.cells.group = 1,
-                assay="SCT")
+                assay="RNA")
   } 
   else{
     return(NULL)
@@ -297,9 +372,9 @@ for(i in 1:length(immune_list)){
   write.table(other_vs_control[[i]], paste(gsub("/", "", unique(immune_list[[i]]@meta.data$CellType2)), "_other_vs_control", ".csv"), sep =",", quote = F)
 }
 
-saveRDS(copd_vs_control, file = "20200715_Immune_COPD_vs_Control.rds")
-saveRDS(ipf_vs_control, file = "20200715_Immune_IPF_vs_Control.rds")
-saveRDS(other_vs_control, file = "20200715_Immune_Other_vs_Control.rds")
+saveRDS(copd_vs_control, file = "20210208_Immune_COPD_vs_Control.rds")
+saveRDS(ipf_vs_control, file = "20210208_Immune_IPF_vs_Control.rds")
+saveRDS(other_vs_control, file = "20210208_Immune_Other_vs_Control.rds")
 
 # Extract out only the p_adj_values from the DEG lists
 p_val1=list()
@@ -363,7 +438,7 @@ other_pval$group2 <- "Other-ILD"
 # Combine all files to generate a file with all p_adj_values 
 pval <- rbind(melt(copd_pval), melt(ipf_pval), melt(other_pval))
 colnames(pval) <- c("GeneID","group1","group2","CellType","p_adj")
-write.csv(pval, file = "20200722_Immune_Boxplot_p_adj_val.csv")
+write.csv(pval, file = "20210208_Immune_Boxplot_p_adj_val.csv")
 
 # Add significant into the p_val file
 onion <- pval$p
@@ -373,7 +448,7 @@ onion[onion > 0.1] <- NA
 pval$significant <- onion 
 
 ## Extract out the count data for box plot
-assayData <- GetAssayData(immune, slot = "counts")
+assayData <- GetAssayData(immune, slot = "counts", assay = "SCT")
 gene1 <- data.frame(assayData[rownames(assayData) == "AREG",])
 gene2 <- data.frame(assayData[rownames(assayData) == "CXCL8",])
 gene3 <- data.frame(assayData[rownames(assayData) == "CCL3",])
@@ -411,11 +486,11 @@ plot_data <- rbind(gene1, gene2, gene3, gene4, gene5)
 
 # Extract out p_adj_val
 stat.test <- pval[pval$GeneID %in% unique(plot_data$GeneID),]
-write.csv(stat.test, file = "20200813_Immune_Fig3C_negbinom.csv")
+write.csv(stat.test, file = "20210208_Immune_Fig3C_negbinom.csv")
 
 # Plotting the cDCs
 plot_data.m1 <- plot_data[plot_data$CellType == "cDCs",]
-plot_data.m1.1 <- plot_data.m1[plot_data.m1$GeneID == "IL6ST",]
+plot_data.m1.1 <- plot_data.m1[plot_data.m1$GeneID == "AREG",]
 
 ggplot(plot_data.m1.1, aes(x=Diagnosis, y=counts, color = Diagnosis)) + 
   geom_boxplot(outlier.size = 0) +
@@ -429,7 +504,7 @@ ggplot(plot_data.m1.1, aes(x=Diagnosis, y=counts, color = Diagnosis)) +
 
 # Plotting the macrophages
 plot_data.m2 <- plot_data[plot_data$CellType == "Macrophages",]
-plot_data.m2.1 <- plot_data.m1[plot_data.m1$GeneID == "IL6ST",]
+plot_data.m2.1 <- plot_data.m2[plot_data.m2$GeneID == "AREG",]
 
 ggplot(plot_data.m2.1, aes(x=Diagnosis, y=counts, color = Diagnosis)) + 
   geom_boxplot(outlier.size = 0) +
@@ -443,7 +518,7 @@ ggplot(plot_data.m2.1, aes(x=Diagnosis, y=counts, color = Diagnosis)) +
 
 # Plotting the monocytes
 plot_data.m3 <- plot_data[plot_data$CellType == "Monocytes",]
-plot_data.m3.1 <- plot_data.m1[plot_data.m1$GeneID == "IL6ST",]
+plot_data.m3.1 <- plot_data.m1[plot_data.m1$GeneID == "AREG",]
 
 ggplot(plot_data.m3.1, aes(x=Diagnosis, y=counts, color = Diagnosis)) + 
   geom_boxplot(outlier.size = 0) +

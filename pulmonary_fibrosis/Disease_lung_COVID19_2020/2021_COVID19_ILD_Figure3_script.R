@@ -1,7 +1,7 @@
 # ====================================
 # Author: Linh T. Bui, lbui@tgen.org
-# Date: 2020-07-03
-# Title: scRNA-seq data analysis for Covid-19 manuscript - Figure 2
+# Date: 2020-04-12
+# Title: scRNA-seq data analysis for Covid-19 manuscript - Figure 3
 # ====================================
 
 # ==============================================================================
@@ -35,200 +35,22 @@ library(dplyr)
 library(ggrepel)
 library(broom)
 library(rstatix)
+library(sctransform)
+library(topGO)
+library(org.Hs.eg.db)
 
 # ==============================================================================
 # Read in the Epithelial object (containing all cell types)
 # ==============================================================================
-epi <- readRDS("/scratch/lbui/Covid19_Seurat/20200708_Epi_annotated_noDoublets.rds")
+epi <- readRDS("/scratch/lbui/Covid19_ILD_objects/20210204_Epithelial_noDoublets.rds")
 
 # ==============================================================================
-# Figure 2A: Binary heatmap
+# Figure 3A: Gene expression correlation
 # ==============================================================================
-# Split the Epithelial object into a list of different CT objects
-epi_list = list()
-j <- 0
-for(i in unique(epi@meta.data$CellType1)){
-  j <- j + 1
-  epi_list[[j]] <- subset(epi,
-                          cells = row.names(epi@meta.data[epi@meta.data$CellType1 == i, ]))
-}
-for(i in 1:length(epi_list)){
-  names(epi_list) <- lapply(epi_list, function(xx){paste(unique(xx@meta.data$CellType1))})
-}
-summary(epi_list)
-
-# Run DEG for Covid-19 candidate genes      
-genelist <- c("ACE2","BSG","TMPRSS2","CTSL","CTSB","FURIN","PCSK5","PCSK7",
-              "ADAM17","PIKFYVE","TPCN2","AGT","ACE","ITGB6","C1QA","C1QB",
-              "C1QC","C2","C3","C4B","IFNAR1","IFNAR2","IFNGR1",
-              "IFNGR2","PTPN11","EIF2AK2","EIF2AK3","CXCL1","TRIM27","TRIM28","NFKB1",
-              "RNF41","JUN","SOCS1","SOCS2","CSF2","CSF3","ICAM1","CD47",
-              "CD44","CCL2","CCL3","FGA","FGG","ATG5","ATG7","BECN1","SQSTM1",
-              "MAP1LC3A","MAP1LC3B","ATF6","ERN1","MUC5B") #remove NT5DC1 since it's in non-human primate (Ziegler et al., 2020. CELL)
-
-heatmap_deg <- lapply(epi_list, function(xx){
-  print(unique(xx@meta.data$CellType1))
-  FindMarkers(xx,
-              group.by = "Status",
-              ident.1 = "Disease",
-              ident.2 = "Control",
-              features = genelist,
-              test.use = "negbinom",
-              latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
-              logfc.threshold = 0,
-              min.pct = 0)
-})
-
-# Save the DEG files
-for(i in 1:length(epi_list)){
-   write.table(heatmap_deg[[i]], paste(gsub("/", "", unique(epi_list[[i]]@meta.data$CellType1)), 
-                                       "_disease_vs_control", ".csv"), sep =",", quote = F)}
-
-  # Name the list with CT and create a new list with geneID and CT for logFC
-temp=list()
-for(i in 1:length(heatmap_deg)){
-  names(heatmap_deg) <- lapply(epi_list, function(xx){paste(unique(xx@meta.data$CellType1))})
-  colnames(heatmap_deg[[i]]) <- c("p_val",names(heatmap_deg[i]),"pct.1","pct.2","p_val_adj")
-  temp[[i]] <- heatmap_deg[[i]][,1:2]
-  temp[[i]]$GeneID <- rownames(temp[[i]])
-}
-summary(heatmap_deg) 
-summary(temp)
-
-# Sort the dataframe based on geneID
-sorted_temp <- lapply(temp, function(df){
-  df[order(df$GeneID),]
-})
-
-# Prepare data for the heatmap
-heatmap_data <- Reduce(
-  function(x, y) merge(x, y, by = "GeneID", all = T),
-  lapply(sorted_temp, function(x) { x$id <- rownames(x); x }))
-heatmap_data$p_val.x <- NULL
-heatmap_data$id.x <- NULL
-heatmap_data$p_val.y <- NULL
-heatmap_data$id.y <- NULL
-heatmap_data$p_val <- NULL
-heatmap_data$id <- NULL
-rownames(heatmap_data) <- heatmap_data[,1]
-heatmap_data[,1] <- NULL
-
-# Arrange row names according to the genelist order
-heatmap_data$id <- rownames(heatmap_data)
-keyDF <- data.frame(key=genelist,weight=1:length(genelist))
-merged <- merge(heatmap_data,keyDF,by.x='id',by.y='key',all.x=T,all.y=F)
-res <- merged[order(merged$weight),]
-res$weight <- NULL
-rownames(res) <- res$id
-res$id <- NULL
-
-## Binary heatmap
-color.palette  <- colorRampPalette(c("ivory2","orange1"))(n=1000)
-test <- res
-test[test < 0] <- 0
-test[test > 0] <- 1
-
-# Rearrange cell type orders
-test <- test[c("AT1","AT2","Transitional AT2","KRT5-/KRT17+","Goblet Cells",
-               "Club Cells","PNEC/Ionocytes","Ciliated Cells",
-               "Differentiating Ciliated Cells","Basal")]
-
-heatmap.2(as.matrix(test),
-          trace = "none",
-          symbreaks = F,
-          symm = F,
-          symkey = F,
-          scale = "none",
-          labCol = "",
-          cexRow = 0.6,
-          col = color.palette,
-          main = "Epithelial logFC Disease vs. Control per CT",
-          Colv = F,
-          Rowv = F,
-          add.expr = text(x = seq_along(colnames(test)), y = -2, srt = 45,
-                          labels = colnames(test), xpd = TRUE))
-
-binomtest <- capture.output(binom.test(length(test[test > 0]), length(test[test>=0]), .5))
-writeLines(binomtest, con = file("20200903_Epi_heatmap_binomtest_disease_control.txt"))
+# Included in the scripts for Fig S10 (2021_COVID19_ILD_Supplementary_figures.R)
 
 # ==============================================================================
-# Figure 2B: AddModuleScore for SARS-CoV-2 entry genes
-# ==============================================================================
-# AddModuleScore for SARS-CoV-2 genes
-entry.gene <- list(c("ACE2","BSG","HSPA5","TMPRSS2","CTSL","FURIN","ADAM17","NRP1"))
-entry.gene2 <- list(c("ACE2","TMPRSS2","CTSL","FURIN","ADAM17")) # Figure S5B
-
-epi <- AddModuleScore(object = epi, features = entry.gene, 
-                      name = 'Entryscores', assay = "SCT")
-epi <- AddModuleScore(object = epi, features = entry.gene2, 
-                      name = 'Entry2scores', assay = "SCT")
-# Make plots
-VlnPlot(object = epi, features = 'Entryscores1', group.by = "CellType2", 
-        pt.size = 0, split.by = "Status") + NoLegend()
-
-# Perform statistic test for Entry scores - 1
-entry_data <- as.data.frame(cbind(epi@meta.data$orig.ident, epi@meta.data$CellType1,
-                                  epi@meta.data$Diagnosis2,epi@meta.data$Entryscores1))
-colnames(entry_data) <- c("Ident","CellType","Diagnosis","Scores")
-
-entry_data$Diagnosis <- as.factor(entry_data$Diagnosis)
-levels(entry_data$Diagnosis)
-entry_data$Scores <- as.numeric(as.character(entry_data$Scores))
-
-entry_tukey <- entry_data %>% group_by(CellType) %>%
-  na.omit()%>%
-  tukey_hsd(Scores ~ Diagnosis)
-
-write.csv(as.data.frame(entry_tukey), file = "20201123_Epi_entryscore1_Tukey.csv")
-
-## Boxplot
-celltype.plot <-  c("AT1","AT2","Transitional AT2","KRT5-/KRT17+","Goblet Cells",
-                    "Club Cells", "PNECs/Ionocytes","Ciliated Cells",
-                    "Differentiating Ciliated Cells","Basal")
-entry_data.df <- entry_data[entry_data$CellType %in% celltype.plot,]
-entry_data.df$CellType <- factor(entry_data.df$CellType, # reorganize x-axis order
-                                 levels=celltype.plot)
-
-ggplot(entry_data.df,aes(x=CellType, y=Scores, fill=Diagnosis)) +
-  geom_boxplot(outlier.size = 0) + 
-  ylim(-0.5,0.75) +
-  ggtitle ("SARS-CoV-2 entry gene scores, with BSG, HSPA5, NRP1") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust=1)) 
-
-# Perform statistic test for Entry scores - 2
-entry_data2 <- as.data.frame(cbind(epi@meta.data$orig.ident, epi@meta.data$CellType1,
-                                  epi@meta.data$Diagnosis2,epi@meta.data$Entry2scores1))
-colnames(entry_data2) <- c("Ident","CellType","Diagnosis","Scores")
-
-entry_data2$Diagnosis <- as.factor(entry_data2$Diagnosis)
-levels(entry_data2$Diagnosis)
-entry_data2$Scores <- as.numeric(as.character(entry_data2$Scores))
-
-entry_tukey2 <- entry_data2 %>% group_by(CellType) %>%
-  na.omit()%>%
-  tukey_hsd(Scores ~ Diagnosis)
-
-write.csv(as.data.frame(entry_tukey2), file = "20200908_Epi_entryscore2_Tukey.csv")
-
-## Boxplot
-entry_data2.df <- entry_data2[entry_data2$CellType %in% celltype.plot,]
-entry_data2.df$CellType <- factor(entry_data2.df$CellType, # reorganize x-axis order
-                                 levels=celltype.plot)
-
-ggplot(entry_data2.df,aes(x=CellType, y=Scores, fill=Diagnosis)) +
-  geom_boxplot(outlier.size = 0) + 
-  ggtitle ("SARS-CoV-2 entry gene scores-No BSG, HSPA5") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust=1)) 
-
-# ==============================================================================
-# Figure 2C: Gene expression correlation
-# ==============================================================================
-# Included in the scripts for Fig S4
-
-# ==============================================================================
-# Figure 2D: Boxplot for some candidates AT2 cells
+# Figure 3B Boxplot for some candidates AT2 cells
 # ==============================================================================
 epi_list = list()
 j <- 0
@@ -241,11 +63,9 @@ for(i in 1:length(epi_list)){
   names(epi_list) <- lapply(epi_list, function(xx){paste(unique(xx@meta.data$CellType2))})
 }
 summary(epi_list)
-epi_list <- epi_list[names(epi_list) != "Ionocytes"]
-epi_list <- epi_list[names(epi_list) != "PNECs"]
 
-genelist2 <- c("ACE2","TMPRSS2","CTSL","FURIN","BSG","ADAM17","HSPA5","ITGB6","NT5DC1",
-               "SOCS1","SOCS2","CSF3")
+genelist2 <- c("ACE2","TMPRSS2","NPR1","CTSL","FURIN","BSG","ADAM17","HSPA5","ITGB6","NT5DC1",
+               "SOCS1","SOCS2","CSF3","FAM46C","UBD","REC8","ELF1","CLEC4D","LY6E")
 
 # Calculate p_adj_value using FindMarkers neg binom test
 copd_vs_control <- lapply(epi_list, function(xx){
@@ -375,20 +195,20 @@ other_pval$group2 <- "Other-ILD"
 # Combine all files to generate a file with all p_adj_values 
 pval <- rbind(melt(copd_pval), melt(ipf_pval), melt(other_pval))
 colnames(pval) <- c("GeneID","group1","group2","CellType","p_adj")
-write.csv(pval, file = "20200722_Epi_Boxplot_p_adj_val.csv")
+write.csv(pval, file = "20210207_Epi_Boxplot_p_adj_val.csv")
 
 # Add significant into the p_val file
-onion <- pval$p
+onion <- pval$p_adj
 onion[onion <= 0.05] <- "**"
 onion[onion > 0.05 & onion <= 0.1] <- "*"
 onion[onion > 0.1] <- NA
 pval$significant <- onion 
 
 # Extract out gene counts
-assayData <- GetAssayData(epi, slot = "counts")
+assayData <- GetAssayData(epi, slot = "counts", assay = "SCT")
 gene1 <- data.frame(assayData[rownames(assayData) == "ITGB6",])
-gene2 <- data.frame(assayData[rownames(assayData) == "SOCS1",])
-gene3 <- data.frame(assayData[rownames(assayData) == "SOCS2",])
+gene2 <- data.frame(assayData[rownames(assayData) == "SOCS2",])
+gene3 <- data.frame(assayData[rownames(assayData) == "LY6E",])
 gene4 <- data.frame(assayData[rownames(assayData) == "CSF3",])
 
 ## Adding metadata
@@ -400,12 +220,12 @@ gene1$GeneID <- "ITGB6"
 colnames(gene2) <- c("counts")
 gene2$CellType <- epi@meta.data$CellType2
 gene2$Diagnosis <- epi@meta.data$Diagnosis2
-gene2$GeneID <- "SOCS1"
+gene2$GeneID <- "SOCS2"
 
 colnames(gene3) <- c("counts")
 gene3$CellType <- epi@meta.data$CellType2
 gene3$Diagnosis <- epi@meta.data$Diagnosis2
-gene3$GeneID <- "SOCS2"
+gene3$GeneID <- "LY6E"
 
 colnames(gene4) <- c("counts")
 gene4$CellType <- epi@meta.data$CellType2
@@ -420,28 +240,121 @@ plot_data.df <- plot_data[plot_data$CellType == "AT2",]
 plot_data.df <- plot_data.df[plot_data.df$counts > 0,]
 
 # Extract out p_adj_val
-stat.test <- pval[pval$GeneID %in% c("ITGB6","SOCS1","SOCS2","CSF3"),]
+stat.test <- pval[pval$GeneID %in% c("ITGB6","SOCS2","LY6E","CSF3"),]
 stat.test <- stat.test[stat.test$CellType == "AT2",]
 stat.test <- stat.test[order(stat.test$GeneID),]
-stat.test$y.position <- c(40,45,50,22,24,26,12,14,16,16,18,20)
+stat.test$y.position <- c(40,45,50,22,24,26,30,32,34,16,18,20)
 
 # Plotting
-plot_data.df2 <- plot_data.df[plot_data.df$GeneID == "CSF3",]
-stat.test2 <- stat.test[stat.test$GeneID == "CSF3",]
+## Boxplot
+plot_data.df2 <- plot_data.df[plot_data.df$GeneID == "SOCS2",]
+stat.test2 <- stat.test[stat.test$GeneID == "SOCS2",]
 ggplot(plot_data.df2, aes(x=Diagnosis, y=counts, color = Diagnosis)) + 
   geom_boxplot(outlier.size = -1,width = 0.75, na.rm = T) +
   geom_jitter(position = position_jitter(0.15)) + 
   theme_bw() +
   stat_pvalue_manual(stat.test2, size=4, tip.length = 0.01, step.group.by = "GeneID",
-                 label = "significant") +
+                     label = "significant") +
   theme(axis.title.x=element_text(size=15), 
         axis.text.x=element_text(size=0)) +
-  ylim(0,50) + 
+  ylim(0,20) + 
   theme(axis.title.y=element_text(size=15),
         axis.text.y=element_text(size=10))
 
 # ==============================================================================
-# Figure 2E: ACE2+ correlated gene analysis
+# Figure 3C: DEG and upset plot
+# ==============================================================================
+# Subset out AT2 cells
+at2 <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$CellTypeSimple == "AT2",]))
+
+# Subset out ACE2+ AT2 cells
+ace2 <- subset(at2,  ACE2 > 0, slot = "counts")
+# Count number of ACE2+ cells
+table(ace2@meta.data$Diagnosis2)
+#Control      COPD       IPF Other-ILD 
+#427        73       138       141 
+
+# Subset out control vs. cld cells
+at2.control <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$Diagnosis2 == "Control",]))
+at2.cld <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$Diagnosis2 != "Control",]))
+
+# Get the cell BC for ACE2+ cells
+cellBC <- rownames(ace2@meta.data)
+
+# Add a column into the meta data for ACE2+ cells
+onion <- rownames(at2.control@meta.data)
+output <- ifelse(onion %in% cellBC, "ACE2+", "ACE2-")
+at2.control@meta.data$ACE2 <- output
+
+onion <- rownames(at2.cld@meta.data)
+output <- ifelse(onion %in% cellBC, "ACE2+", "ACE2-")
+at2.cld@meta.data$ACE2 <- output
+
+# Run a DEG analysis
+at2.control_deg <- FindMarkers(at2.control,
+                               group.by = "ACE2",
+                               ident.1 = "ACE2+",
+                               ident.2 = "ACE2-",
+                               test.use = "negbinom",
+                               latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                               assay ="SCT",
+                               logfc.threshold = 0)
+write.csv(at2.control_deg, file = "20210220_AT2_control_ACE2_deg.csv")
+
+at2.cld_deg <- FindMarkers(at2.cld,
+                           group.by = "ACE2",
+                           ident.1 = "ACE2+",
+                           ident.2 = "ACE2-",
+                           test.use = "negbinom",
+                           latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                           assay ="SCT",
+                           logfc.threshold = 0)
+write.csv(at2.cld_deg, file = "20210220_AT2_cld_ACE2_deg.csv")
+
+# DEG for ACE2+ in Control vs. CLD samples
+ace2_CLD_con <- FindMarkers(ace2,
+                            group.by = "Status",
+                            ident.1 = "Disease",
+                            ident.2 = "Control",
+                            test.use = "negbinom",
+                            latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                            assay ="SCT",
+                            logfc.threshold = 0)
+write.csv(ace2_CLD_con, file = "20210222_AT2_ACE2_CLD_Control_deg.csv")
+
+# DEG for AT2 in Control vs. CLD samples
+at2_CLD_con <- FindMarkers(at2,
+                           group.by = "Status",
+                           ident.1 = "Disease",
+                           ident.2 = "Control",
+                           test.use = "negbinom",
+                           latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                           assay ="SCT",
+                           logfc.threshold = 0)
+write.csv(ace2_CLD_con, file = "20210220_AT2_CLD_Control_deg.csv")
+
+# Create a list
+deg_list <- list(at2.control_deg, at2.cld_deg, ace2_CLD_con, at2_CLD_con)
+names(deg_list) <- c("ACE2+/-_Control","ACE2+/-_CLD","ACE2_CLD_Control", "AT2_CLD_Control")
+
+# Make an Upset plot for shared of those 3 comparisons
+onion <- lapply(deg_list, function(xx){ row.names(xx[xx$p_val_adj <= .1,])})
+onion <- unique(unlist(onion))
+onion2 <- lapply(deg_list, function(xx) {onion %in% row.names(xx[xx$p_val_adj <= .1,])})
+upset_d_vs_c <- as.data.frame(onion2, col.names = 1:length(onion2) )
+upset_d_vs_c <- cbind(onion2[[1]], onion2[[2]], onion2[[3]], onion2[[4]])
+upset_d_vs_c <- as.data.frame(upset_d_vs_c)
+
+row.names(upset_d_vs_c) <- onion
+colnames(upset_d_vs_c) <- names(deg_list)
+
+upset_d_vs_c[upset_d_vs_c == T] <- 1
+upset_d_vs_c[upset_d_vs_c == F] <- 0
+
+upset(upset_d_vs_c, nsets = 4, text.scale = 2, show.numbers = T)
+
+# ==============================================================================
+# Figure 3E: ACE2+ correlated gene analysis
 # ==============================================================================
 # Subset out AT2 ACE2+ cells
 at2 <- subset(epi, cells=rownames(epi@meta.data[epi@meta.data$CellTypeSimple == "AT2",]))
@@ -489,20 +402,21 @@ for(i in 1:length(onion)){
 
 # Prepare data for plotting
 plot_data <- do.call(rbind, onion)
-plot_data <- plot_data[!duplicated(plot_data$geneID),]
+#plot_data <- plot_data[!duplicated(plot_data$geneID),]
 plot_data <- plot_data[plot_data$geneID != "ACE2",]
 temp1 <- grep( "^MT-", rownames(plot_data), ignore.case = F, value = T)
 temp2 <- grep( "^RP", rownames(plot_data), ignore.case = F, value = T)
 plot_data <- plot_data[!plot_data$geneID %in% temp1,]
 plot_data <- plot_data[!plot_data$geneID %in% temp2,]
 
-copd.gene <- c("OAS1","CLEC3B","ITGB7","WNT11","IGSF6","ACKR4","MST1R","LST1",
-               "OASL","ILLN2","IFI6","IFI27","IFIT1","IFIT2","IFIT3")
-ipf.gene <- c("IL31RA","SOX2","DDX17","NXF3","RMI1","GBP6","KIF19","COL1A1",
-              "MAPK9","ITPKB","IGFBP2","IGFBP7","GLRA3","CLDN10")
-control.gene <- c("SCN7A","AC245052.4","CTA-204B4.2")
-other.gene <- c("IL10","ITLN1","CD83","IGFBP2","NRTN","MUC4","KRT13",
-                "SFTPB")
+copd.gene <- c("OAS1","CLEC3B","WNT11","IGSF6","ACKR4","MST1R","LST1",
+               "OASL","IFI6","IFIT1","IFIT2","IGFBP2","FOXA3","TNFAIP8L2",
+               "IGLV3-10","SOX9")
+ipf.gene <- c("NXF3","RMI1","ITPKB","IGFBP2","IGFBP7","CLDN10","CES3","CD93",
+              "IGSF22","FKBP10","MCM4","CDH1","SYT16","SP4","ITPKB")
+control.gene <- c("SCN7A","AC245052.4")
+other.gene <- c("IL10ORB-DT","ITLN1","NOD2","IGFBP2","PRKX","MUC4","KRT13",
+                "CLDN4","MUC16","ITGB8","TNFRSF11B","NOD2")
 
 plot_data$genelabels <- ""
 plot_data$genelabels <- ifelse(plot_data$geneID %in% copd.gene & plot_data$Set == "COPD" 
@@ -512,7 +426,7 @@ plot_data$genelabels <- ifelse(plot_data$geneID %in% copd.gene & plot_data$Set =
                                , TRUE,FALSE)
 
 # Plot correlation 
-pdf("20200904_ACE2_correlation_SCT_data.pdf")
+pdf("20210207_ACE2_correlation_SCT_data_clean.pdf")
 ggplot(plot_data, aes(x=-log10(p_value), y=rho, color = Set)) +
   geom_point() +
   xlab(expression("-Log"[10]*"(p_value)")) +
@@ -523,13 +437,59 @@ ggplot(plot_data, aes(x=-log10(p_value), y=rho, color = Set)) +
   geom_hline(aes(yintercept = quantile(rho, 0.99, na.rm = TRUE)), 
              size=0.5,color="black", linetype="dashed") +
   geom_text_repel(label = ifelse(plot_data$genelabels == TRUE, 
-                                 plot_data$geneID,"")) +
-  # geom_text_repel(data=subset(plot_data,abs(rho) >= 0.5 & -log10(p_value) >= 2),
-  #                  aes(-log10(p_value), rho, label = geneID),
-  #                 size = 3) +
+                                 plot_data$geneID,""),
+                  max.overlaps=1000) +
+  #geom_text_repel(data=subset(plot_data,abs(rho) >= 0.5 & -log10(p_value) >= 3),
+  #                            aes(-log10(p_value), rho, label = geneID),
+  #                                 size = 3,max.overlaps=500) +
   ggtitle("ACE2 correlated genes")
 dev.off()
 
-write.csv(plot_data, file = "20200908_ACE2_correlation_SCT_data.csv")
+write.csv(plot_data, file = "20210207_ACE2_correlation_SCT_data.csv")
 
+# GO analysis with TopGO
+# Prepare the TopGO genelist for all genes in the correlation analysis
+cor_list <- plot_data
+cor_genes <- as.vector(cor_list[,1])
+names(cor_genes) <- rownames(cor_list)
 
+# Filter out significant ACE2 correlated genes (p_value <= 0.03, 99th quantile rho)
+quantile(cor_list$rho,0.99)
+genelist <- cor_list[cor_list$rho >= quantile(cor_list$rho,0.99),]
+
+# Count number of significant genes
+dim(genelist[genelist$Set == "COPD",])
+# 330   4
+dim(genelist[genelist$Set == "Control",])
+# 2 4
+dim(genelist[genelist$Set == "IPF",])
+# 108   4
+dim(genelist[genelist$Set == "Other-ILD",])
+# 268   4
+
+# Extract out the significant genelist in the CLD samples
+cld_genes <- as.vector(genelist[genelist$Diagnosis != "Control",][,2])
+names(cld_genes) <- rownames(genelist[genelist$Diagnosis != "Control",])
+
+# Run TopGO for the significant genes among all the correlated genes in the result table
+GOdata <- new('topGOdata', 
+              ontology = "BP", 
+              allGenes = cor_genes, 
+              geneSelectionFun = function(x){return(x %in% cld_genes)},
+              annot=annFUN.org, 
+              mapping = 'org.Hs.eg.db', 
+              ID = 'symbol')
+
+# Run statistic tests
+allGO = usedGO(object = GOdata) 
+resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
+resultFisher
+tab <- GenTable(GOdata, raw.p.value = resultFisher, topNodes = length(allGO), numChar = 120)
+tab
+
+#performing BH correction on our p values
+p.adj <- round(p.adjust(tab$raw.p.value,method="BH"),digits = 4)
+tab <- cbind(tab, p.adj)
+
+# Save results
+write.csv(tab, file = "20210208_ACE2_CLD_correlated_TopGO_Fisher.csv")

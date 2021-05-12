@@ -42,16 +42,19 @@ library(rstatix)
 # Supplementary Figure 1 -  DotPlot for cell type markers
 # ==============================================================================
 # Read in the ILD object (containing all cell types)
-ild <- readRDS("/scratch/lbui/Covid19_Seurat/20200709_ILD_noDoublets.rds")
+ild <- readRDS("/scratch/lbui/Covid19_ILD_objects/20210211_ILD_noDoublets.rds")
 
 # Order cell types along the x axis according to population 
 cell_order <- c("Lymphatic Endothelial Cells","Vascular Endothelial Cells","AT1",
-                "AT2","Basal","Ciliated Cells","Ionocytes","KRT5-/KRT17+","PNEC/Ionocytes",
-                "Secretory Cells", "Transitional AT2","B Cells","cDCs","Macrophages",
-                "Mast Cells","Monocytes","NK Cells","pDCs","Plasma Cells","T Cells",
-                "Fibroblasts","Mesothelial","Pericytes","Smooth Muscle Cells")
+                "AT2","Transitional AT2","KRT5-/KRT17+","Basal","Ciliated Cells",
+                "SCGB3A2+","SCGB3A2+/SCGB1A1+","MUC5AC+","MUC5B+","PNEC/Ionocytes",
+                "Club Cells", "Goblet Cells","B Cells","cDCs","Macrophages",
+                "Proliferating Macrophages","Mast Cells","Monocytes","NK Cells",
+                "pDCs","Plasma Cells","CD4 T Cells","CD8 T Cells" ,"Proliferating T Cells",
+                "Fibroblasts","Myofibroblasts","HAS1 High Fibroblasts",
+                "PLIN2+ Fibroblasts","Mesothelial","Pericytes","Smooth Muscle Cells")
 
-ild$CellTypeSimple <- factor(ild$CellTypeSimple, levels=cell_order)
+ild$CellType2 <- factor(ild$CellType2, levels=cell_order)
 
 # Make dotplot
 DotPlot(ild, features = c("TAGLN","ACTG2","GJA4","RGS5","HP","WT1","LUM","PDGFRA",
@@ -60,12 +63,12 @@ DotPlot(ild, features = c("TAGLN","ACTG2","GJA4","RGS5","HP","WT1","LUM","PDGFRA
                           "CD1C","MS4A1","CD19","MUC5B","SCGB3A2","SCGB1A1",
                           "FOXI1","FOXJ1","KRT5","KRT17","SFTPC","ABCA3","AGER",
                           "VWF","CCL21"), 
-        group.by = "CellTypeSimple") + 
+        group.by = "CellType2") + 
   theme(axis.text.x = element_text(size = 7)) +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 
 # ==============================================================================
-# Supplementary Figure 2 - BSG+, CTSL+ and HSPA5+ cell proportion
+# Supplementary Figure 3 - BSG+, CTSL+ and HSPA5+ cell proportion
 # ==============================================================================
 # Extract out total number of cells per ident
 table1 <- as.data.frame(table(ild$orig.ident, ild$CellType1, ild$Diagnosis2))
@@ -153,15 +156,14 @@ sp_tukey <- onion %>% group_by(CellType,geneid) %>%
   tukey_hsd(Percent ~ Diagnosis)
 
 # Save the table for supplemental info
-write.csv (onion, file = "20201123_FigS2_percentage.allCT.csv")
-write.csv (onion_means, file = "20201123_FigS2_percentage_means.allCT.csv")
-write.csv (as.data.frame(sp_tukey), file = "20201123_FigS2_tukey.allCT.csv")
+write.csv (onion, file = "2020216_FigS2_percentage.allCT.csv")
+write.csv (onion_means, file = "20210216_FigS2_percentage_means.allCT.csv")
+write.csv (as.data.frame(sp_tukey), file = "20210216_FigS2_tukey.allCT.csv")
 
 # Order CT on the y axis
 cell_order <- c("Lymphatic Endothelial Cells","Vascular Endothelial Cells","AT1",
                 "AT2","Transitional AT2","KRT5-/KRT17+","Basal","Ciliated Cells",
-                "Differentiating Ciliated Cells","PNEC/Ionocytes",
-                "Club Cells", "Goblet Cells","B Cells","cDCs","Macrophages",
+                "PNEC/Ionocytes","Club Cells", "Goblet Cells","B Cells","cDCs","Macrophages",
                 "Proliferating Macrophages","Mast Cells","Monocytes","NK Cells",
                 "pDCs","Plasma Cells","T Cells", "Proliferating T Cells",
                 "Fibroblasts","Myofibroblasts","HAS1 High Fibroblasts",
@@ -188,7 +190,7 @@ ggplot(onion_means, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   ylab("Fraction of cells") 
 
 # ==============================================================================
-# Supplementary Figure 3A - Double positive cells percentage (FURIN)
+# Supplementary Figure 4A - Double positive cells percentage (FURIN)
 # ==============================================================================
 # Extract out total number of cells per ident
 table1 <- as.data.frame(table(ild$orig.ident, ild$CellType1, ild$Diagnosis2))
@@ -266,9 +268,9 @@ dp_tukey <- onion %>% group_by(CellType,geneid) %>%
   tukey_hsd(Percent ~ Diagnosis)
 
 # Save the table for supplemental info
-write.csv (onion, file = "20201124_FigS3_DP_FURIN_percentage.allCT.csv")
-write.csv (onion_means, file = "20201124_FigS3_DP_FURIN_percentage_means.allCT.csv")
-write.csv(as.data.frame(dp_tukey), file = "20201124_DP_Epi_FURIN_tukey.csv")
+write.csv (onion, file = "20210216_FigS4_DP_FURIN_percentage.allCT.csv")
+write.csv (onion_means, file = "20210216_FigS4_DP_FURIN_percentage_means.allCT.csv")
+write.csv(as.data.frame(dp_tukey), file = "20210216_DP_Epi_FURIN_tukey.csv")
 
 # Make a Venn Diagram for all CT
 set1 <- rownames(sub1@meta.data)
@@ -301,6 +303,8 @@ grid.draw(temp)
 # Barplot for percentage 
 onion_means$CellType <- factor(onion_means$CellType, 
                                levels=cell_order)
+onion_means$Diagnosis <- factor(onion_means$Diagnosis,
+                                levels=c("Other-ILD","IPF","COPD","Control"))
 ggplot(onion_means, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   geom_bar(stat="identity",position='dodge', width = 0.8) +
   facet_grid(~geneid, scales = "free") +  
@@ -316,7 +320,7 @@ ggplot(onion_means, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   ylab("Percentage of cells") 
 
 # ==============================================================================
-# Supplementary Figure 3B - Double positive cells percentage (CTSL)
+# Supplementary Figure 4B - Double positive cells percentage (CTSL)
 # ==============================================================================
 # Extract out total number of cells per ident
 table1 <- as.data.frame(table(ild$orig.ident, ild$CellType1, ild$Diagnosis2))
@@ -392,9 +396,9 @@ dp_tukey <- onion %>% group_by(CellType,geneid) %>%
   tukey_hsd(Percent ~ Diagnosis)
 
 # Save the table for supplemental info
-write.csv (onion, file = "20201124_FigS3_DP_CTSL_percentage.allCT.csv")
-write.csv (onion_means, file = "20201124_FigS3_DP_CTSL_percentage_means.allCT.csv")
-write.csv(as.data.frame(dp_tukey), file = "20201124_DP_Epi_CTSL_tukey.csv")
+write.csv (onion, file = "20210216_FigS4_DP_CTSL_percentage.allCT.csv")
+write.csv (onion_means, file = "20210216_FigS4_DP_CTSL_percentage_means.allCT.csv")
+write.csv(as.data.frame(dp_tukey), file = "20210216_DP_Epi_CTSL_tukey.csv")
 
 # Make a Venn Diagram for all CT
 set1 <- rownames(sub1@meta.data)
@@ -427,6 +431,8 @@ grid.draw(temp)
 # Plotting 
 onion_means$CellType <- factor(onion_means$CellType, 
                                levels=cell_order)
+onion_means$Diagnosis <- factor(onion_means$Diagnosis,
+                                 levels=c("Other-ILD","IPF","COPD","Control"))
 ggplot(onion_means, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   geom_bar(stat="identity",position='dodge', width = 0.8) +
   facet_grid(~geneid, scales = "free") +  
@@ -439,12 +445,13 @@ ggplot(onion_means, aes(x=CellType, y= Mean, fill = Diagnosis)) +
   theme(axis.text.y=element_text(size=10)) + 
   scale_y_continuous()+
   coord_flip() + 
-  ylab("Percentage of cells") 
+  ylab("Percentage of cells") +
+  NoLegend()
 
 # ==============================================================================
-# Figure 2C and Figure S4: SARS-CoV-2 gene correlation analysis
+# Figure 3A and Table S10: SARS-CoV-2 gene correlation analysis
 # ==============================================================================
-epi <- readRDS("/scratch/lbui/Covid19_Seurat/20200708_Epi_annotated_noDoublets.rds")
+epi <- readRDS("/scratch/lbui/Covid19_ILD_objects/20210204_Epithelial_noDoublets.rds")
 
 library(gridExtra)
 library(ggplot2)
@@ -479,7 +486,7 @@ sub2 <- subset(at2, cells=rownames(at2@meta.data[at2@meta.data$Diagnosis2 == "CO
 sub3 <- subset(at2, cells=rownames(at2@meta.data[at2@meta.data$Diagnosis2 == "IPF",]))
 sub4 <- subset(at2, cells=rownames(at2@meta.data[at2@meta.data$Diagnosis2 == "Other-ILD",]))
 
-gene1 <- c("NRP1") #change name correspondingly
+gene1 <- c("ACE2") #change name correspondingly
 gene2 <- c("TMPRSS2","CTSL","FURIN","ADAM17","ITGB6")
 
 plot_list1 <- list()
@@ -662,39 +669,38 @@ plot_list <- interleave(plot_lista, plot_listb)
 
 plot_list <- plyr::compact(plot_list)
 
-pdf(file = paste("20201123_Correlation_plot_SCT_AT2_diseasegroups3.pdf", 
+pdf(file = paste("20210208_Correlation_plot_SCT_AT2_diseasegroups1.pdf", 
                  sep = "_"), width = 8.5, height = 11)
 grid.arrange(grobs = plot_list, ncol = 4)
 dev.off()
 
+rm(fit1,fit2,fit3,fit4,gene1,gene2,i,j,means1,means2,means3,means4,onion1,onion1_means,onion2,onion2_means,onion3,onion3_means,onion4,onion4_means,onion5,onion5_means,onion6,onion6_means,onion7,onion7_means,onion8,onion8_means,plot_index,plot_list,plot_list1,plot_list2,plot_list3,plot_list4,plot_lista,plot_listb,pVal1,pVal2,pVal3,pVal4)
+
 # ==============================================================================
-# Supplementary Table 4: Count Matrix for unpublished dataset
+# Supplementary Dataset 1: Count Matrix for unpublished dataset
 # ==============================================================================
 # Load the object
-ild <- readRDS("/scratch/lbui/Covid19_Seurat/20200709_ILD_noDoublets.rds")
+ild <- readRDS("/scratch/lbui/Covid19_ILD_objects/20210211_ILD_noDoublets.rds")
 
 # Extract out gene count matrix for genes used in the study
-genelist <- c("ACE2","BSG","TMPRSS2","CTSL","CTSB","FURIN","PCSK5","PCSK7",
-              "ADAM17","PIKFYVE","TPCN2","AGT","ACE","ITGB6","C1QA","C1QB",
-              "C1QC","C2","C3","C4B","IFNAR1","IFNAR2","IFNGR1","NRP1","HSPA5",
-              "IFNGR2","PTPN11","EIF2AK2","EIF2AK3","CXCL1","TRIM27","TRIM28","NFKB1",
-              "RNF41","JUN","SOCS1","SOCS2","CSF2","CSF3","ICAM1","CD47",
-              "CD44","CCL2","CCL3","FGA","FGG","ATG5","ATG7","BECN1","SQSTM1",
+genelist <- c("ACE2","BSG","TMPRSS2","NPR1","CTSL","CTSB","FURIN","PCSK5","PCSK7",
+              "ADAM17","PIKFYVE","TPCN2","AGT","ACE","ITGB6","IFNAR1","IFNAR2",
+              "EIF2AK2","EIF2AK3","CD44","IFNGR1","IFNGR2","FAM46C","UBD","REC8",
+              "ELF1","CLEC4D","LY6E","SPATS2L","ZBP1","DNAJC6","IFIT3","RGS22",
+              "B4GALT5","ISG20","GNB4","SPATA13","NRN1","ERLIN1","APOL2","RAB27A",
+              "FZD5","C9orf91","TAGAP","HSPA8","CNP","ETV6","MSR1","BST2","CXCL1",
+              "CSF2","CSF3","ICAM1","CD47","CCL2","CCL3","TRIM27","TRIM28","RNF41",
+              "NFKB1","JUN","SOCS1","SOCS2","C1QA","C1QB","C1QC","C2","C3","C4B",
+              "PTPN11","FGA","FGG","ATG5","ATG7","BECN1","SQSTM1","CXCL10", 
               "MAP1LC3A","MAP1LC3B","ATF6","ERN1","MUC5B","ISG15", "IFI44", "IFI27", 
-              "CXCL10", "RSAD2", "IFIT1", "IFI44L", "CCL8", "XAF1", "GBP1", "IRF7", 
+              "RSAD2", "IFIT1", "IFI44L", "CCL8", "XAF1", "GBP1", "IRF7", 
               "CEACAM1","IFNB1","IFNG","IFNAR1","IFNAR2","IFNGR1","IFNGR2","TRIM28",
               "TLR7","MX1","STAT1","TBK1","CCR2","CXCL10","IFI6","LY6E",
               "TRIM27","TNF","IL1B","IL6","IL6R","IL6ST","TGFB1","NFKB1",
               "NFKB2","CEBPB","AREG","FCGR3A","IL10","IFITM1","IFITM3","ISG20",
               "CD163","IL1R2","MRC1","HAVCR2","LGALS9","S100A8","S100A9",
               "HLA-DRA", "HLA-DQA1", "HLA-DQA2", "HLA-DPA1", "HLA-DRB1", "HLA-DPB1", 
-              "HLA-DQB2", "HLA-DRB5", "HLA-DQB1", "HLA-DMA", "HLA-DMB","IL6R","IL6ST",
-              "SOCS1","SOCS2","CCL2","CCL3","CXCL8","AREG","FCGR3A",
-              "S100A8","S100A9","GZMB","LAG3","ISG15","IFI44","IFI27","CXCL10",
-              "RSAD2","IFIT1","IFI44L","CCL8","XAF1","GBP1","IRF7","CEACAM1",
-              "ARID5A","SOCS3","PIM1","BCL3","BATF","MYC","PRF1", "GZMH", "IFNG",
-              "NKG7", "KLRG1", "PRF1","GNLY","GZMB","GZMK","LAG3","TIGIT","PDCD1",
-              "CTLA4","HAVCR2","TOX","PRDM1","MAF")
+              "HLA-DQB2", "HLA-DRB5", "HLA-DQB1", "HLA-DMA", "HLA-DMB")
 genelist <- unique(genelist)
 
 # Subset out only the unpublished samples
@@ -709,10 +715,234 @@ samples <- c("TILD041" ,"TILD051" ,"VUILD79" ,"VUILD77", "VUHD84" , "TILD049",
 ild.df <- subset(ild, features = genelist, 
                  cells = rownames(ild@meta.data[ild@meta.data$Sample_Name %in% samples, ]))
 
-saveRDS(ild.df, file = "20201201_ILD_COVID_unpublished39samples.rds")
+saveRDS(ild.df, file = "20210216_ILD_COVID_unpublished39samples.rds")
 
 # Export out the count matrix
 write.table(as.matrix(GetAssayData(object = ild.df, slot = "counts")), 
             file = "TableS4_ILD_COVID_unpublished39samples_counts.csv", 
             sep = ',', row.names = T, col.names = T, quote = F)
 
+# ==============================================================================
+# Supplementary Figure 5: SARS-CoV-2 entry gene expression
+# ==============================================================================
+epi <- readRDS("/scratch/lbui/Covid19_saved/20210204_Epithelial_noDoublets.rds")
+vlncol <- c("Control"="#F8766D","COPD"="#7CAE00","IPF"="#00BFC4",
+            "Other-ILD"="#C77CFF")
+VlnPlot(epi, c("NRP1"), group.by = "CellType2",split.by = "Diagnosis2", 
+        pt.size = 0, assay="SCT", cols=vlncol) + NoLegend()
+DotPlot(epi, features = "ACE2", group.by = "CellType2", split.by = "Status")
+VlnPlot(epi, features = "ACE2", group.by = "CellType2", slot = "counts")
+
+# ==============================================================================
+# Supplementary Figure 6: NRP1
+# ==============================================================================
+VlnPlot(ild, "NRP1", group.by = "CellType2", pt.size = 0) + NoLegend()
+celltype.use <- c("Vascular Endothelial Cells","Macrophages",
+                  "Proliferating Macrophages","pDCs","Fibroblasts","Myofibroblasts",
+                  "HAS1 High Fibroblasts","PLIN2+ Fibroblasts")
+immune <- readRDS("/scratch/lbui/Covid19_saved/20210204_Immune_noDoublets.rds")
+endo <- readRDS("/scratch/lbui/Covid19_saved/20210204_Endothelial_noDoublets.rds")
+mesen <- readRDS("/scratch/lbui/Covid19_saved/20210204_Mesenchymal_noDoublets.rds")
+
+nrp1_list = list()
+j <- 0
+for(i in unique(mesen@meta.data$CellType2)){
+  j <- j + 1
+  nrp1_list[[j]] <- subset(mesen,
+                          cells = row.names(mesen@meta.data[mesen@meta.data$CellType2 == i, ]))
+}
+for(i in 1:length(nrp1_list)){
+  names(nrp1_list) <- lapply(nrp1_list, function(xx){paste(unique(xx@meta.data$CellType2))})
+}
+summary(nrp1_list)
+macrophage <- subset(immune, cells=rownames(immune@meta.data[immune@meta.data$CellType2 == "Macrophages",]))
+pro.macro <- subset(immune, cells=rownames(immune@meta.data[immune@meta.data$CellType2 == "Proliferating Macrophages",]))
+pdc <- subset(immune, cells=rownames(immune@meta.data[immune@meta.data$CellType2 == "pDCs",]))
+vas.endo <- subset(endo, cells=rownames(endo@meta.data[endo@meta.data$CellType2 == "Vascular Endothelial Cells",]))
+
+nrp1_list <- c(nrp1_list, macrophage, pro.macro, pdc, vas.endo)
+names(nrp1_list) <- c("Mesothelial","Fibroblasts","Smooth Muscle Cells","Pericytes",
+                      "Myofibroblasts","PLIN2+ Fibroblasts","HAS1 High Fibroblasts",
+                      "Macrophages","Proliferating Macrophages", "pDCs",
+                      "Vascular Endothelial Cells")
+nrp1_list <- nrp1_list[names(nrp1_list) %in% celltype.use]
+
+# Calculate p_adj_value using FindMarkers neg binom test
+copd_vs_control <- lapply(nrp1_list, function(xx){
+  print(unique(xx@meta.data$CellType2))
+  if(length(unique(xx@meta.data$Diagnosis2)) > 1) {
+    FindMarkers(xx,
+                group.by = "Diagnosis2",
+                ident.1 = "COPD",
+                ident.2 = "Control",
+                test.use = "negbinom", # using this test: the slot is set to "counts"
+                features = "NRP1",
+                latent.vars = c("dataset","Age","Ethinicity","Smoking_status"),
+                logfc.threshold = 0,
+                assay="SCT")
+  } 
+  else{
+    return(NULL)
+  } 
+})
+
+ipf_vs_control <- lapply(nrp1_list, function(xx){
+  print(unique(xx@meta.data$CellType2))
+  if(length(unique(xx@meta.data$Diagnosis2)) > 1) {
+    FindMarkers(xx,
+                group.by = "Diagnosis2",
+                ident.1 = "IPF",
+                ident.2 = "Control",
+                test.use = "negbinom",
+                features = "NRP1",
+                latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                logfc.threshold = 0,
+                assay="SCT")
+  } 
+  else{
+    return(NULL)
+  } 
+})
+
+nrp1_list2 <- nrp1_list[-4] # error with HAS since there's no DEG found
+other_vs_control <- lapply(nrp1_list2, function(xx){
+  print(unique(xx@meta.data$CellType2))
+  if(length(unique(xx@meta.data$Diagnosis2)) > 1) {
+    FindMarkers(xx,
+                group.by = "Diagnosis2",
+                ident.1 = "Other-ILD",
+                ident.2 = "Control",
+                test.use = "negbinom", 
+                features = "NRP1",
+                latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                logfc.threshold = 0,
+                assay="SCT")
+  } 
+  else{
+    return(NULL)
+  } 
+})
+for(i in 1:length(nrp1_list)){
+  write.table(copd_vs_control[[i]], paste(gsub("/", "", unique(nrp1_list[[i]]@meta.data$CellType2)), "_copd_vs_control", ".csv"), sep =",", quote = F)
+}
+for(i in 1:length(nrp1_list)){
+  write.table(ipf_vs_control[[i]], paste(gsub("/", "", unique(nrp1_list[[i]]@meta.data$CellType2)), "_ipf_vs_control", ".csv"), sep =",", quote = F)
+}
+for(i in 1:length(nrp1_list2)){
+  write.table(other_vs_control[[i]], paste(gsub("/", "", unique(nrp1_list2[[i]]@meta.data$CellType2)), "_other_vs_control", ".csv"), sep =",", quote = F)
+}
+
+# ==============================================================================
+# Supplementary Figure 8E: Violin plot for Epithelial cells
+# ==============================================================================
+# Read in Epithelial cells
+epi <- readRDS("/scratch/lbui/Covid19_ILD_objects/20210204_Epithelial_noDoublets.rds")
+
+# Violin plots
+vlncol <- c("Control"="#F8766D","COPD"="#7CAE00","IPF"="#00BFC4",
+            "Other-ILD"="#C77CFF")
+genes <- c("CSF3","ITGB6","SOCS1","SOCS2","LY6E")
+plot_list <- list()
+j=0
+for(i in(1:length(genes))){
+  j=j+1
+  plot_list[[j]] <- VlnPlot(epi, features=genes[i], group.by = "CellType2", split.by = "Diagnosis2",
+          split.plot = T, pt.size = 0, cols = vlncol) + NoLegend()
+}
+pdf("20210217_Fig8_vlnplot.pdf")
+plot_list
+dev.off()
+
+# ==============================================================================
+# Supplementary Figure 8F: Volcano plot for DEG in AT2 CLD vs. Control
+# ==============================================================================
+# Subset out AT2 cells
+at2 <- subset(epi, cells=rownames(epi@meta.data[epi@meta.data$CellTypeSimple == "AT2",]))
+
+# Run DEG
+copd_control_at2 <- FindMarkers(at2, 
+                                ident.1 = "COPD", 
+                                ident.2 = "Control",
+                                group.by = "Diagnosis2",
+                                test.use = "negbinom",
+                                latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                                logfc.threshold = 0,
+                                assay="SCT")
+
+ipf_control_at2 <- FindMarkers(at2, 
+                               ident.1 = "IPF", 
+                               ident.2 = "Control",
+                               group.by = "Diagnosis2",
+                               test.use = "negbinom",
+                               latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                               logfc.threshold = 0,
+                               assay="SCT")
+
+other_control_at2 <- FindMarkers(at2, 
+                                 ident.1 = "Other-ILD", 
+                                 ident.2 = "Control",
+                                 group.by = "Diagnosis2",
+                                 test.use = "negbinom",
+                                 latent.vars = c("dataset","Age","Ethnicity","Smoking_status"),
+                                 logfc.threshold = 0,
+                                 assay="SCT")
+
+# Save objects
+write.csv(copd_control_at2, file = "20210215_AT2_COPD_Control_DEG.csv")
+write.csv(ipf_control_at2, file = "20210215_AT2_IPF_Control_DEG.csv")
+write.csv(other_control_at2, file = "20210215_AT2_Other_Control_DEG.csv")
+
+# Make a volcano plot
+copd_control_at2$genename <- rownames(copd_control_at2)
+ipf_control_at2$genename <- rownames(ipf_control_at2)
+other_control_at2$genename <- rownames(other_control_at2)
+
+copd_control_at2$Test <- "COPD"
+ipf_control_at2$Test <- "IPF"
+other_control_at2$Test <- "Other-ILD"
+
+test <- rbind(copd_control_at2, ipf_control_at2, other_control_at2)
+temp1 <- grep( "^MT-", rownames(test), ignore.case = F, value = T) # pull out mitochondria genes
+temp2 <- grep( "^RP", rownames(test), ignore.case = F, value = T) # pull out ribosomal genes
+test <- test[!test$genename %in% temp2,] # remove ribosomal genes 
+test <- test[!test$genename %in% temp1,] # remove mitochondria genes 
+copd_control_at2 <- copd_control_at2[!copd_control_at2$genename %in% c(temp1,temp2),]
+ipf_control_at2 <- ipf_control_at2[!ipf_control_at2$genename %in% c(temp1,temp2),]
+other_control_at2 <- other_control_at2[!other_control_at2$genename %in% c(temp1,temp2),]
+cols <- c("all" = "light grey","IPF" = "#00BFC4", "COPD" = "#7CAE00", 
+          "Other-ILD" = "#C77CFF")
+
+# Draw volcano plot
+ggplot(test, aes(x = avg_log2FC, y = -log10(p_val_adj), color = "all")) + 
+  geom_point() +
+  geom_point(data = test[abs(test$avg_log2FC) >= 1 & test$Test == "IPF" & 
+                           test$p_val_adj <= 0.01,], color = "#00BFC4") +
+  geom_point(data = test[abs(test$avg_log2FC) >= 1 & test$Test == "COPD" & 
+                           test$p_val_adj <= 0.01,], color = "#7CAE00") +
+  geom_point(data = test[abs(test$avg_log2FC) >= 1 & test$Test == "Other-ILD" & 
+                           test$p_val_adj <= 0.01,], color = "#C77CFF") +
+  xlab(expression("Fold Change, Log"[2]*"")) +
+  ylab(expression("P value, Log"[10]*"")) +
+  theme_bw() +
+  geom_text_repel(data=subset(ipf_control_at2,abs(avg_log2FC) >= 1 & p_val_adj <= 0.01),
+                  aes(avg_log2FC, -log10(p_val), label = genename, colour="IPF"),
+                  size = 3, nudge_x = -0.05, nudge_y = 0, max.overlaps = 100) +
+  geom_text_repel(data=subset(copd_control_at2,abs(avg_log2FC) >= 1 & p_val_adj <= 0.01),
+                  aes(avg_log2FC, -log10(p_val), label = genename, colour="COPD"),
+                  size = 3, nudge_x = 0, nudge_y = 0, max.overlaps = 100) +
+  geom_text_repel(data=subset(other_control_at2,abs(avg_log2FC) >= 1 & p_val_adj <= 0.01),
+                  aes(avg_log2FC, -log10(p_val), label = genename, colour="Other-ILD"),
+                  size = 3, nudge_x = 0.2, nudge_y = -1, max.overlaps = 100) +
+  scale_colour_manual(name="Diagnosis",values=cols)  +
+  guides(fill = guide_legend(override.aes = aes(label = ""))) +
+  ggtitle("AT2 cells CLD vs. Control")
+
+# ==============================================================================
+# Supplementary Figure 12: Violin plot for all Immune cell types (same as Fig4C)
+# ==============================================================================
+immune <- readRDS("/scratch/lbui/Covid19_ILD_objects/20210204_Immune_noDoublets.rds")
+
+vlncol <- c("Control"="#F8766D","COPD"="#7CAE00","IPF"="#00BFC4",
+            "Other-ILD"="#C77CFF")
+VlnPlot(immune, c("S100A9"), group.by = "CellType2",split.by = "Diagnosis2", 
+        pt.size = 0, assay="SCT", cols=vlncol) + NoLegend()
