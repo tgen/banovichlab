@@ -1,5 +1,5 @@
 # Disease lung COVID19 2020 Release
-This repo contains the code used for analysis in our manuscript "Single-cell RNA-sequencing reveals dysregulation of molecular programs associated with SARS-CoV-2 severity and outcomes in patients with chronic lung disease". The preprint is available via BioRxiv [here](https://www.biorxiv.org/content/10.1101/2020.10.20.347187v1 "here").
+This repo contains the code used for analysis in our manuscript "Chronic lung diseases are associated with gene expression programs favoring SARS-CoV-2 entry and severity". The paper is available via Nature Communications  [here](https://www.nature.com/articles/s41467-021-24467-0 "here").
 
 
 
