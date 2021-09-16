@@ -73,9 +73,6 @@ onion2$Percent <- onion2$Counts/length(rownames(immune@meta.data)) * 100
 onion3$Percent <- onion3$Counts/length(rownames(immune@meta.data)) * 100
 onion4$Percent <- onion4$Counts/length(rownames(immune@meta.data)) * 100
 
-# Combine all data into 1 data frame
-data_table <- rbind(onion1, onion2, onion3, onion4)
-
 # Plotting
 data_table$Diagnosis <- factor(data_table$Diagnosis,
                                levels = c("Other-ILD","IPF","COPD","Control"))

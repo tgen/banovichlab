@@ -412,7 +412,7 @@ plot_data <- plot_data[!plot_data$geneID %in% temp2,]
 copd.gene <- c("OAS1","CLEC3B","WNT11","IGSF6","ACKR4","MST1R","LST1",
                "OASL","IFI6","IFIT1","IFIT2","IGFBP2","FOXA3","TNFAIP8L2",
                "IGLV3-10","SOX9")
-ipf.gene <- c("NXF3","RMI1","ITPKB","IGFBP2","IGFBP7","CLDN10","CES3","CD93",
+ipf.gene <- c("NXF3","RMI1","ITPKB","IGFBP7","CLDN10","CES3","CD93",
               "IGSF22","FKBP10","MCM4","CDH1","SYT16","SP4","ITPKB")
 control.gene <- c("SCN7A","AC245052.4")
 other.gene <- c("IL10ORB-DT","ITLN1","NOD2","IGFBP2","PRKX","MUC4","KRT13",
