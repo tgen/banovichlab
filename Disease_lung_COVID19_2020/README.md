@@ -6,5 +6,5 @@ This repo contains the code used for analysis in our manuscript "Chronic lung di
 #### Data info:
 | File | Descripton  |
 | ------------ | ------------ |
-|[ILD_alldataset_population_noSCT.rds](https://figshare.com/ndownloader/files/30835246") | Seurat object containing all cells and annotations used in analysis (6.43 GB Hosted by figshared) |
+|[ILD_alldataset_population_noSCT.rds](https://figshare.com/ndownloader/files/30835246") | Seurat object containing all cells and annotations used in analysis (6.43 GB, Hosted by figshare) |
 
