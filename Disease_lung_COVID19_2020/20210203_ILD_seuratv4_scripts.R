@@ -29,11 +29,179 @@ library(sctransform)
 library(Seurat)
 library(dplyr)
 
+#=====================================
+# Load all the objects 
+# These objects were processed with Seurat v3 on 2020/05
+# Please contact us directly if you want to use these objects
+# We do, however, provide a merged object with Level 1 annotation in Figshare  
+#=====================================
+# Banovich - Kropski dataset
+bano <- readRDS("ILD_bano.rds") #GSE135893 and unpublished data
+# Yale/BMW dataset
+load("Clean.Soup107.forGEO.Seurat.Robj") #GSE136831
+# Pittbursg dataset
+pitt <- readRDS("Pittsburg.rds") #GSE128033
+# Northwestern dataset
+northwt <- readRDS("Northwestern.rds") #GSE122960
+
+# ======================================
+# Rerun SCTransform and split data set into population and merge individual populations
+# ======================================
+# Adjust Kaminski object to match with others
+kaminski_metadata <- as.data.frame(cbind(intron.exon.107$orig.ident, intron.exon.107$Library_Identity,
+                                         intron.exon.107$Disease_Identity, intron.exon.107$Subject_Identity))
+colnames(kaminski_metadata) <- c("orig.ident","Library_Identity","Disease_Identity","Subject_Identity")
+kaminski <- intron.exon.107
+kaminski@meta.data <- kaminski@meta.data[ ,c("Library_Identity","nCount_RNA",
+                                             "nFeature_RNA","percent.mito")]
+colnames(kaminski@meta.data) <- c("orig.ident","nCount_RNA","nFeature_RNA","percent.mt")
+rm(intron.exon.107)
+
+# Add a dataset identity column to each dataset
+bano@meta.data$dataset <- "VUMC/TGen"
+kaminski@meta.data$dataset <- "Yale/BWH"
+northwt@meta.data$dataset <- "Northwestern"
+pitt@meta.data$dataset <- "Pittsburg"
+
+# Filter out cells with low number of nfeature_RNA & high mitochondria reads
+bano <- PercentageFeatureSet(object = bano, pattern = "^MT-", col.name = "percent.mt")
+kaminski <- PercentageFeatureSet(object = kaminski, pattern = "^MT-", col.name = "percent.mt")
+northwt <- PercentageFeatureSet(object = northwt, pattern = "^MT-", col.name = "percent.mt")
+pitt <- PercentageFeatureSet(object = pitt, pattern = "^MT-", col.name = "percent.mt")
+
+pdf("Smoothscaterplot.pdf")
+smoothScatter(bano@meta.data$percent.mt, bano@meta.data$nFeature_RNA) 
+smoothScatter(kaminski@meta.data$percent.mt, kaminski@meta.data$nFeature_RNA) 
+smoothScatter(northwt@meta.data$percent.mt, northwt@meta.data$nFeature_RNA) 
+smoothScatter(pitt@meta.data$percent.mt, pitt@meta.data$nFeature_RNA) 
+dev.off()
+
+bano <- subset(bano, subset = nFeature_RNA > 1000 & percent.mt < 25)
+kaminski <- subset(kaminski, subset = nFeature_RNA > 1000 & percent.mt < 25)
+northwt <- subset(northwt, subset = nFeature_RNA > 1000 & percent.mt < 25)
+pitt <- subset(pitt, subset = nFeature_RNA > 1000 & percent.mt < 25)
+
+# Splitting TGEN/VUMC object
+bano <- SCTransform(bano)
+bano <- RunPCA(bano)
+bano <- RunUMAP(bano, dims = 1:20)
+bano <- FindNeighbors(bano, dims = 1:20)
+bano <- FindClusters(bano, resolution = 0.01)
+
+DotPlot(bano, features = c("EPCAM","PTPRC","PECAM1"))
+
+onion <- as.character(bano@meta.data$seurat_clusters)
+onion[onion %in% c(0,3,7,8)] <- "Immune"
+onion[onion %in% c(1,2,6)] <- "Epithelial"
+onion[onion == 4] <- "Endothelial"
+onion[onion == 5] <- "Mesenchymal"
+bano@meta.data$population <- onion
+
+# Splitting Yale object
+kaminski <- SCTransform(kaminski)
+kaminski <- RunPCA(kaminski)
+kaminski <- RunUMAP(kaminski, dims = 1:20)
+kaminski <- FindNeighbors(kaminski, dims = 1:20)
+kaminski <- FindClusters(kaminski, resolution = 0.05)
+
+DotPlot(kaminski, features = c("EPCAM","PTPRC","PECAM1"))
+
+onion <- as.character(kaminski@meta.data$seurat_clusters)
+onion[onion %in% c(0,1,2,5,8,9,11)] <- "Immune"
+onion[onion %in% c(3,4)] <- "Epithelial"
+onion[onion %in%  c(7,10)] <- "Endothelial"
+onion[onion == 6] <- "Mesenchymal"
+kaminski@meta.data$population <- onion
+
+# Splitting Pittsburg object
+pitt <- SCTransform(pitt)
+pitt <- RunPCA(pitt)
+pitt <- RunUMAP(pitt, dims = 1:20)
+pitt <- FindNeighbors(pitt, dims = 1:20)
+pitt <- FindClusters(pitt, resolution = 0.01)
+
+DotPlot(pitt, features = c("EPCAM","PTPRC","PECAM1"))
+
+onion <- as.character(pitt@meta.data$seurat_clusters)
+onion[onion %in% c(0,4,6)] <- "Immune"
+onion[onion == 1] <- "Epithelial"
+onion[onion %in% c(2,5)] <- "Endothelial"
+onion[onion == 3] <- "Mesenchymal"
+pitt@meta.data$population <- onion
+
+# Splitting Northwestern object
+northwt <- SCTransform(northwt)
+northwt <- RunPCA(northwt)
+northwt <- RunUMAP(northwt, dims = 1:20)
+northwt <- FindNeighbors(northwt, dims = 1:20)
+northwt <- FindClusters(northwt, resolution = 0.02)
+
+DotPlot(northwt, features = c("EPCAM","PTPRC","PECAM1"))
+
+onion <- as.character(northwt@meta.data$seurat_clusters)
+onion[onion %in% c(0,3)] <- "Immune"
+onion[onion %in% c(1,2)] <- "Epithelial"
+onion[onion == 4] <- "Endothelial"
+onion[onion == 5] <- "Mesenchymal"
+northwt@meta.data$population <- onion
+
+# Merge all dataset
+ild <- merge(x=bano, y=c(kaminski, pitt, northwt))
+
+# ===================================
+# Add meta data and save objects
+# ===================================
+# Add meta data
+meta.data <- read.csv("/scratch/lbui/NatCom_Covid/Metadata_Covid19_edited.csv",
+                      header = T )
+ild@meta.data$Diagnosis <- plyr::mapvalues(x = ild@meta.data$orig.ident,
+                                           from = meta.data$Library_ID,
+                                           to = as.character(meta.data$Diagnosis))
+ild@meta.data$Status <- plyr::mapvalues(x = ild@meta.data$orig.ident,
+                                        from = meta.data$Library_ID,
+                                        to = as.character(meta.data$Status))
+ild@meta.data$Sample_Name <- plyr::mapvalues(x = ild@meta.data$orig.ident,
+                                             from = meta.data$Library_ID,
+                                             to = as.character(meta.data$Sample_Name))
+ild@meta.data$Age <- plyr::mapvalues(x = ild@meta.data$orig.ident,
+                                     from = meta.data$Library_ID,
+                                     to = as.character(meta.data$Age))
+ild@meta.data$Ethnicity <- plyr::mapvalues(x = ild@meta.data$orig.ident,
+                                           from = meta.data$Library_ID,
+                                           to = as.character(meta.data$Race))
+ild@meta.data$Smoking_status <- plyr::mapvalues(x = ild@meta.data$orig.ident,
+                                                from = meta.data$Library_ID,
+                                                to = as.character(meta.data$Smoking_Status))
+onion <- ild@meta.data$Diagnosis 
+
+onion[onion == "Control"] <- "Control"
+onion[onion == "IPF"] <- "IPF"
+onion[onion == "COPD"] <- "COPD"
+onion[onion %in% c("cHP","IPAF","CTD-ILD","ILD","NSIP","Sarcoidosis",
+                   "Hypersensitivity pneumonitis")] <- "Other-ILD"
+
+ild@meta.data$Diagnosis2 <- onion
+
+# Save the object
+saveRDS(bano, file = "BanoVUMC_pop.rds")
+saveRDS(kaminski, file = "Kaminski_pop.rds")
+saveRDS(pitt, file = "Pittsburg_pop.rds")
+saveRDS(northwt, file = "Northwestern_pop.rds")
+saveRDS(ild, file = "ILD_alldataset_population_annotated.rds")
+
+# Remove files to free memory
+rm(bano,kaminski,pitt,northwt)
+
+# Remove the SCT assay to reduce size of the file for Figshare
+ild@assays$SCT <- NULL
+saveRDS(ild, file="ILD_alldataset_population_noSCT.rds")
+
 # ==============================================================================
 # Running cell type annotation per population (start from here with the submitted object)
+# We provided this object through Figshare (see link on Github page)
 # ==============================================================================
 # Read in the ILD object
-ild <- readRDS("/scratch/lbui/NatCom_Covid/ILD_alldataset_population_annotated.rds")
+ild <- readRDS("ILD_alldataset_population_noSCT.rds")
 
 # ---------------------------------------
 # Epithelial population
@@ -107,8 +275,8 @@ epi2 <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$CellTypeSimple 
 epi2 <- RunUMAP(epi2, dims=1:20)
 
 # Save the object
-saveRDS(epi2, file="/scratch/lbui/NatCom_Covid/20210914_Epithelial_noDoublets.rds")
-saveRDS(epi, file="/scratch/lbui/NatCom_Covid/20210914_Epithelial_wDoublets.rds")
+saveRDS(epi2, file="Epithelial_noDoublets.rds")
+saveRDS(epi, file="Epithelial_wDoublets.rds")
 
 # ---------------------------------------
 # Mesenchymal population
@@ -117,7 +285,7 @@ saveRDS(epi, file="/scratch/lbui/NatCom_Covid/20210914_Epithelial_wDoublets.rds"
 meso <- subset(ild, cells = rownames(ild@meta.data[ild@meta.data$population == "Mesenchymal", ]))
 
 # Seurat pipeline for SCTransform and clustering
-meso <- SCTransform(meso, batch_var = "dataset2") 
+meso <- SCTransform(meso, batch_var = "dataset") 
 meso <- RunPCA(meso)
 meso <- RunUMAP(meso, dims = 1:20, verbose = F)
 meso <- FindNeighbors(meso, dims = 1:20)
@@ -166,8 +334,8 @@ meso2 <- subset(meso, cells = rownames(meso@meta.data[meso@meta.data$CellTypeSim
 DimPlot(meso2, group.by = "CellType1")
 
 # Save the object
-saveRDS(meso2, file="20210204_Mesenchymal_noDoublets.rds")
-saveRDS(meso, file="20210204_Mesenchymal_wDoublets.rds")
+saveRDS(meso2, file="Mesenchymal_noDoublets.rds")
+saveRDS(meso, file="Mesenchymal_wDoublets.rds")
 rm(meso)
 
 # ---------------------------------------
@@ -177,7 +345,7 @@ rm(meso)
 endo <- subset(ild, cells = rownames(ild@meta.data[ild@meta.data$population == "Endothelial", ]))
 
 # Seurat pipeline for SCTransform and clustering
-endo <- SCTransform(endo, batch_var="dataset2") 
+endo <- SCTransform(endo, batch_var="dataset") 
 endo <- RunPCA(endo)
 endo <- RunUMAP(endo, dims = 1:20, verbose = F)
 endo <- FindNeighbors(endo, dims = 1:20)
@@ -202,8 +370,8 @@ endo@meta.data$CellType2 <- endo@meta.data$CellTypeSimple
 # Remove doublets
 endo2 <- subset(endo, cells = rownames(endo@meta.data[endo@meta.data$CellTypeSimple != "Doublets", ]))
 
-saveRDS(endo2, file="/scratch/lbui/NatCom_Covid/20210204_Endothelial_noDoublets.rds")
-saveRDS(endo, file="/scratch/lbui/NatCom_Covid/20210204_Endothelial_wDoublets.rds")
+saveRDS(endo2, file="Endothelial_noDoublets.rds")
+saveRDS(endo, file="Endothelial_wDoublets.rds")
 rm(endo)
 
 # ---------------------------------------
@@ -319,13 +487,13 @@ immune2 <- subset(immune, cells = rownames(immune@meta.data[immune@meta.data$Cel
 DimPlot(immune2, group.by = "CellType2")
 
 # Save objects
-saveRDS(immune2, file= "/scratch/lbui/NatCom_Covid/20210914_Immune_noDoublets.rds")
-saveRDS(immune, file="/scratch/lbui/NatCom_Covid/20210914_Immune_wDoublets.rds")
+saveRDS(immune2, file= "Immune_noDoublets.rds")
+saveRDS(immune, file="Immune_wDoublets.rds")
 rm(immune)
 
 # ==========================================
 # Merge all objects
-# Note:  Seurat v4 doesnot support batch_var in SCTransform, solution:
+# Note:  Seurat v4 does not support batch_var in SCTransform, solution:
 # 1. Downgrade to Seurat v3 for merging (I used v3.1.4)
 # 2. Install SeuratObject separately for v3 through CRAN
 # ==========================================
@@ -346,7 +514,7 @@ ild <- RunUMAP(ild, dims = 1:28, verbose = F)
 DimPlot(ild, group.by = "CellType2", label = T, repel = T) + NoLegend()
 
 # Save object
-saveRDS(ild, "/scratch/lbui/Covid19_saved/20210204_ILD_noDoublets.rds")
+saveRDS(ild, "ILD_noDoublets.rds")
 
 # Get some cell counts
 write.csv(table(ild@meta.data$dataset), file = "20200710_ILD_dataset_counts.csv")
