@@ -3,6 +3,7 @@
 # Date: 2021-02-04
 # Title: scRNA-seq data analysis for Covid-19 manuscript (rerun with Seurat v4)
 # Note: 
+# Seurat v4 does not support batch_var in SCTransform anymore, so I recommend:
 # 1. Seurat version v4.0.0 (released 01/30/2021)
 # 2. sctransform: remotes::install_github("ChristophH/sctransform@4342164")
 # ====================================
@@ -31,9 +32,8 @@ library(dplyr)
 
 #=====================================
 # Load all the objects 
-# These objects were processed with Seurat v3 on 2020/05
-# Please contact us directly if you want to use these objects
-# We do, however, provide a merged object with Level 1 annotation in Figshare  
+# These objects were originally downloaded and read into Seurat v3 on 2020/05, I reprocessed  with Seurat v4 to keep everything consistent
+# Please contact us directly if you want to use these objects. We do, however, provide a merged object with Level 1 annotation in Figshare  
 #=====================================
 # Banovich - Kropski dataset
 bano <- readRDS("ILD_bano.rds") #GSE135893 and unpublished data
@@ -152,7 +152,7 @@ ild <- merge(x=bano, y=c(kaminski, pitt, northwt))
 # Add meta data and save objects
 # ===================================
 # Add meta data
-meta.data <- read.csv("/scratch/lbui/NatCom_Covid/Metadata_Covid19_edited.csv",
+meta.data <- read.csv("Sample_metadata_information.csv",
                       header = T )
 ild@meta.data$Diagnosis <- plyr::mapvalues(x = ild@meta.data$orig.ident,
                                            from = meta.data$Library_ID,

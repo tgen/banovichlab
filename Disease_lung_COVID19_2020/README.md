@@ -8,5 +8,6 @@ This repo contains the code used for analysis in our manuscript "Chronic lung di
 | ------------ | ------------ |
 |[ILD_alldataset_population_noSCT.rds](https://figshare.com/articles/dataset/ILD_alldataset_population_noSCT_rds/16653148) | Seurat object containing all cells and annotations used in analysis (6.43 GB, Hosted by figshare) |
 |[ILD_meta.data_nodoublets.csv](https://figshare.com/articles/dataset/ILD_meta_data_nodoublets_csv/16654588) | Metadata file used to annotate samples (138.16 MB, Hosted by figshare) |
+|[Sample_metadata_information.csv](https://figshare.com/articles/dataset/Sample_metadata_information_csv/16786072)| Metadata file for sample source and demographic information (20 KB, Hosted by figshare)|
 
 
