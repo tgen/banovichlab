@@ -17,6 +17,6 @@ BiorXiv preprint: URL
 ### eQTL calling with <i>LIMIX</i> and <i>mashr</i>
 A snakemake pipeline for reproducing the eQTL results is located in [a separate repository](https://gitlab.svi.edu.au/biocellgen-public/musj_2021_multi-omics-lung-CBA). Plotting and multi-cell type eQTL analysis was carried out using [custom software](url).
 
-### Colocalization with <i>coloc</i>
+### Colocalization analysis using <i>coloc</i>
 
 ### Genotype–cell type proportion testing using <i>propeller</i>
