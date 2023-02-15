@@ -1,4 +1,4 @@
-This directory contains custom scripts to process and analyze the data published in Natri, Del Azodi, et al. 2023.
+This directory contains custom scripts to process and analyze the data presented in
 
 ## Cell type-specific and disease-associated eQTL in the human lung
 
