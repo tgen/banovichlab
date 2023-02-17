@@ -5,7 +5,7 @@ This directory contains custom scripts to process and analyze the data presented
 Heini M Natri<sup>1</sup>, Christina B Del Azodi<sup>2</sup>, Lance Peter<sup>1</sup>, Chase Taylor<sup>3</sup>, Sagrika Chugh<sup>2</sup>, Robert Kendle<sup>1</sup>, Jonathan Kropski<sup>3</sup>, Davis McCarthy<sup>2</sup> & Nicholas E Banovich<sup>1</sup>
 
 <sup>1</sup>Translational Genomics Research Institute (TGen), Phoenix, AZ;
-<sup>2</sup>St. Vincent’s Institute of Medical Research, Melbourne, Australia
+<sup>2</sup>St. Vincent’s Institute of Medical Research, Melbourne, Australia;
 <sup>3</sup>Vanderbilt University Medical Center, Nashville, TN
 
 Corresponding author information: Nicholas E Banovich, nbanovich@tgen.org
