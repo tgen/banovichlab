@@ -175,10 +175,6 @@ for(i in seq(1, 7)){
     eqtl_gwas_snp_overlap[-which(rownames(eqtl_gwas_snp_overlap) %in% snps), c(paste0("k", i))] <- 0
 }
 
-head(eqtl_gwas_snp_overlap)
-
-# Are lineage or cell type specific eQTLs more likely to to be significant in GWAS?
-
 # A matrix with numbers/proportions of GWAS and non-GWAS SNPs for each class
 prop_matrix <- matrix(NA, nrow = 14, ncol = 4)
 colnames(prop_matrix) <- c("gwas", "non_gwas", "prop_gwas", "prop_non_gwas")
@@ -189,7 +185,6 @@ for(i in rownames(prop_matrix)){
     prop_matrix[i, "non_gwas"] <- table(eqtl_gwas_snp_overlap[,i], eqtl_gwas_snp_overlap$gwas)[2,1]
 }
 
-prop_matrix
 prop_matrix <- as.data.frame(prop_matrix)
 prop_matrix$prop_gwas <- prop_matrix$gwas/(prop_matrix$gwas+prop_matrix$non_gwas)*100
 prop_matrix$prop_non_gwas <- prop_matrix$non_gwas/(prop_matrix$gwas+prop_matrix$non_gwas)*100
