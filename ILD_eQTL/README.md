@@ -14,11 +14,15 @@ BiorXiv preprint: URL
 
 ### Single-cell sequence data processing and cell type annotation
 
+10x data were processed and integrated using <i>Seurat</i> v4 (processing_integration.R) and cell types were annotated based on marker gene expression (annotation.R).
+
 ### eQTL calling with <i>LIMIX</i> and <i>mashr</i>
 A snakemake pipeline for reproducing the eQTL results is located in [a separate repository](https://gitlab.svi.edu.au/biocellgen-public/musj_2021_multi-omics-lung-CBA). Plotting and multi-cell type eQTL analysis was carried out using [custom software](url).
 
 ### Colocalization analysis using <i>coloc</i>
 
+Colocalization with GTEx bulk-eQTL and lung trait GWAS was carried out using a bayesian method implemented in <i>coloc</i> (coloc.R).
+
 ### Enrichment testing
 
-
+To test for the enrichment of cell type eQTL among IPF GWAS implicated variants, a null set of non-significant eQTL was selected using <i>nullranges</i> (enrichment.R).
