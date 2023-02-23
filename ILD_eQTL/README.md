@@ -19,4 +19,6 @@ A snakemake pipeline for reproducing the eQTL results is located in [a separate 
 
 ### Colocalization analysis using <i>coloc</i>
 
-### Genotype–cell type proportion testing using <i>propeller</i>
+### Enrichment testing
+
+
