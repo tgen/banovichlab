@@ -26,9 +26,9 @@ library(data.table)
 # Helper functions
 # ======================================
 
-source("/home/hnatri/Utilities/utilities.R")
-source("/home/hnatri/ILD_processing_annotation/lung_celltype_markers.R")
-source("/home/hnatri/ILD_processing_annotation/lung_celltype_colors.R")
+source("utilities.R")
+source("lung_celltype_markers.R")
+source("lung_celltype_colors.R")
 
 # ======================================
 # Environment variables
