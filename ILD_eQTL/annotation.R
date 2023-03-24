@@ -51,66 +51,44 @@ ild_all <- readRDS("/scratch/hnatri/ILD/Seurat_objects/ild_all.6_12_18_24_integr
 # =====================================
 
 # Split out the epithelial pop
-epi.integrated <- subset(ild_all, 
-                         cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Epithelial",]))
+epi <- subset(ild_all,
+              cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Epithelial",]))
 
-DefaultAssay(epi.integrated) <- "integrated"
+DefaultAssay(epi) <- "integrated"
 # Finding variable features, rescaling and running PCA
 # nfeatures = 3000
-epi.integrated <- FindVariableFeatures(epi.integrated,
-                                       assay = "integrated")
-epi.integrated.features <- VariableFeatures(epi.integrated,
-                                            assay = "integrated")
-epi.integrated <- ScaleData(epi.integrated,
-                            assay = "integrated",
-                            verbose = T)
-epi.integrated <- RunPCA(epi.integrated,
-                         reduction.name = "integrated_pca",
-                         assay = "integrated",
-                         features = epi.integrated.features,
-                         verbose = T)
-best_pcs_epi.integrated <- get_pcs(epi.integrated, reduction_name="integrated_pca")
-
-# Saving the ElbowPlot
-filename <- "/home/hnatri/ILD_processing_annotation/epithelial_elbowplot.pdf"
-pdf(file = filename,
-    width = 6, # The width of the plot in inches
-    height = 6) # The height of the plot in inches
-ElbowPlot(epi.integrated, reduction="integrated_pca", ndims=50)
-dev.off()
+epi <- FindVariableFeatures(epi, assay = "integrated")
+epi.features <- VariableFeatures(epi, assay = "integrated")
+epi <- ScaleData(epi, assay = "integrated", verbose = T)
+epi <- RunPCA(epi,
+              reduction.name = "integrated_pca",
+              assay = "integrated",
+              features = epi.integrated.features,
+              verbose = T)
+best_pcs_epi <- get_pcs(epi.features, reduction_name="integrated_pca")
+ElbowPlot(epi, reduction="integrated_pca", ndims=50)
 
 # n.neighbors = 50, min.dist = 0.5, spread = 1, 
 # Constructing the UMAP
-epi.integrated <- RunUMAP(epi.integrated,
-                          dims = 1:18,
-                          reduction = "integrated_pca",
-                          reduction.name = "integrated_umap",
-                          assay = "integrated",
-                          verbose = T)
-epi.integrated <- FindNeighbors(epi.integrated,
-                                dims = 1:18,
-                                reduction = "integrated_pca",
-                                assay = "integrated")
+epi <- RunUMAP(epi,
+               dims = 1:18,
+               reduction = "integrated_pca",
+               reduction.name = "integrated_umap",
+               assay = "integrated",
+               verbose = T)
+epi <- FindNeighbors(epi,
+                     dims = 1:18,
+                     reduction = "integrated_pca",
+                     assay = "integrated")
 
-epi.integrated.clusters <- FindClusters(
-    object = epi.integrated,
+epi <- FindClusters(
+    object = epi,
     resolution = c(0.1, 0.5, 1, 1.5, 2, 2.5),
     graph.name = "integrated_snn"
 )
 
-saveRDS(epi.integrated.clusters, file = "/scratch/hnatri/ILD/Seurat_objects/epithelial_integrated_dims18_clusters_210803.rds")
-epi <- epi.integrated.clusters
-
 epi@meta.data$seurat_clusters <- epi@meta.data$integrated_snn_res.1.5
 Idents(epi) <- "seurat_clusters"
-
-# Proportions of doublets in each cluster:
-doublet_summary <- epi@meta.data %>% group_by(seurat_clusters, doublet_finder) %>%
-    summarize(n = n())
-
-doublet_summary <- pivot_wider(doublet_summary, names_from = doublet_finder, values_from = n) 
-doublet_summary$doublet_prop <- doublet_summary$Doublet/(doublet_summary$Doublet+doublet_summary$Singlet)
-doublet_summary <- arrange(doublet_summary, desc(doublet_prop))
 
 # Add in the label for doublets
 # Looking for clusters that express more than one cell population marker.
@@ -122,13 +100,7 @@ FeaturePlot(epi, reduction = "integrated_umap", features=c("EPCAM","PECAM1","PTP
 
 doublets <- ifelse(epi@meta.data$seurat_clusters %in% c(21,24,25,26,29,30,32,35,41), "Doublets", "Singlets")
 epi@meta.data$doublet <- doublets
-
-filename <- "/home/hnatri/ILD_processing_annotation/epithelial_doublet_dimplot.pdf"
-pdf(file = filename,
-    width = 5, # The width of the plot in inches
-    height = 4) # The height of the plot in inches
 DimPlot(epi, reduction="integrated_umap", group.by = "doublet")
-dev.off()
 
 # Remove doublets, rescaling and reconstructing UMAP
 epi2 <- subset(epi, cells = rownames(epi@meta.data[epi@meta.data$doublet != "Doublets", ]))
@@ -158,8 +130,6 @@ epi2 <- FindClusters(epi2,
 epi2@meta.data$seurat_clusters <- epi2@meta.data$integrated_snn_res.1.5
 Idents(epi2) <- "seurat_clusters"
 
-saveRDS(epi2, file = "/scratch/hnatri/ILD/Seurat_objects/epithelial_integrated_dims18_clusters_res1.5_woutdoublets_dims14_nneighbors30_mindist0.3_210804.rds")
-
 epi <- epi2
 
 # Run FindtransferAnchors
@@ -183,23 +153,6 @@ epi.predictions <- TransferData(anchorset = epi.anchors,
 
 epi <- AddMetaData(epi, metadata = epi.predictions)
 
-# Make some plots
-epi_col <- c("AT1" = "#548BC5",
-             "AT2" = "#EE7342",
-             "Proliferating" = "#B874FF",
-             "Transitional AT2" = "#F1A5C4",
-             "AT2 - low quality" = "#2FC895",
-             "Basal" = "#D38402",
-             "Ciliated" = "#B19302",
-             "PNEC" = "#FFA19D",
-             "Differentiating Ciliated" = "#9C9966",
-             "KRT5-/KRT17+" = "#03AF21",
-             "Secretory - MUC5AC+" = "#003366",
-             "Secretory - SCGB1A1+/MUC5B+" = "#00B2DB",
-             "Secretory - SCGB3A1+/MUC5B+" = "#F659DD",
-             "Secretory - SCGB1A1+/SCGB3A2+" = "#9900CC",
-             "Secretory - SCGB3A2+" = "#FF5BC8")
-
 # NoLegend() + 
 p1 <- DimPlot(epi.ref, group.by = "celltype", label = T, repel = T, cols = epi_col) + 
     ggtitle("Reference") +
@@ -210,38 +163,30 @@ p2 <- DimPlot(epi,  reduction="integrated_umap", group.by = "predicted.id", labe
 
 p1 + p2
 
-saveRDS(epi, file = "/scratch/hnatri/ILD/Seurat_objects/epithelial_integrated_dims18_clusters_res1.5_woutdoublets_dims14_nneighbors30_mindist0.3_annotated_210804.rds")
-
 # Manual annotation of cell types based on marker gene expression
 DefaultAssay(epi) <- "SCT"
 
 # AT1 markers
-at1_markers <- c("AGER", "PDPN", "CAV1", "EMP2")
 DotPlot(epi, features = c("EPCAM", at1_markers))
 FeaturePlot(epi, features = c("EPCAM", at1_markers))
 
 # AT2 markers
-at2_markers <- c("SFTPC", "ABCA3", "LAMP3", "AGER")
 DotPlot(epi, features = c("EPCAM", at2_markers))
 FeaturePlot(epi, features = c("EPCAM", at2_markers))
 
 # Secretory markers
-secretory_markers <- c("SCGB1A1", "SCGB3A2", "MGP", "MUC5B", "MUC5AC")
 DotPlot(epi, features = c("EPCAM", secretory_markers))
 FeaturePlot(epi, features = c("EPCAM", secretory_markers))
 
 # Basal markers
-basal_markers <- c("KRT5", "KRT17", "CHGA", "CALCA", "FOXI1", "SERPINB3")
 DotPlot(epi, features = c("EPCAM", basal_markers))
 FeaturePlot(epi, features = c("EPCAM", basal_markers))
 
 # Ciliated markers
-ciliated_markers <- c("FOXJ1", "SFTPB", "OMG", "PPIL6", "NME5", "NWD1", "SLAIN2", "SPAG16")
 DotPlot(epi, features = c("EPCAM", ciliated_markers))
 FeaturePlot(epi, features = c("EPCAM", ciliated_markers))
 
 # Proliferation markers
-proliferating_markers <- c("MKI67", "CDK1")
 DotPlot(epi, features = c("EPCAM", proliferating_markers))
 FeaturePlot(epi, features = c("EPCAM", proliferating_markers))
 # Proliferating: 34, 23. 40: proliferating or transitional AT2?
@@ -271,64 +216,48 @@ DimPlot(epi, group.by = "predicted.id", label = T, repel = T, cols = epi_col) +
 DimPlot(epi, group.by = "manual_annotation_1", label = T, repel = T, cols = epi_col) +
     theme(legend.position = "none")
 
-saveRDS(epi, file = "/scratch/hnatri/ILD/Seurat_objects/epithelial_integrated_dims18_clusters_res1.5_woutdoublets_dims14_nneighbors30_mindist0.3_annotated_manualannot_210805.rds")
+saveRDS(epi, file = "/scratch/hnatri/ILD/Seurat_objects/epithelial.rds")
 
 # =====================================
 # Immune cell population
 # ====================================
 
 # Split out the immune cell population
-immune.integrated <- subset(ild_all, 
-                            cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Immune",]))
+immune <- subset(ild_all, 
+                 cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Immune",]))
 
-DefaultAssay(immune.integrated) <- "integrated"
+DefaultAssay(immune) <- "integrated"
 
 # Finding variable features, rescaling and running PCA
-immune.integrated <- FindVariableFeatures(immune.integrated,
-                                          assay = "integrated")
-immune.integrated.features <- VariableFeatures(immune.integrated,
-                                               assay = "integrated")
-immune.integrated <- ScaleData(immune.integrated,
-                               assay = "integrated",
-                               verbose = T)
-immune.integrated <- RunPCA(immune.integrated,
-                            reduction.name = "integrated_pca",
-                            assay = "integrated",
-                            features = immune.integrated.features,
-                            verbose = T)
-best_pcs_immune.integrated <- get_pcs(immune.integrated, reduction_name="integrated_pca")
+immune <- FindVariableFeatures(immune, assay = "integrated")
+immune.features <- VariableFeatures(immune,  assay = "integrated")
+immune <- ScaleData(immune, assay = "integrated", verbose = T)
+immune <- RunPCA(immune,
+                 reduction.name = "integrated_pca",
+                 assay = "integrated",
+                 features = immune.features,
+                 verbose = T)
+best_pcs_immune.integrated <- get_pcs(immune, reduction_name="integrated_pca")
 
 # How many PCs to include?
 ElbowPlot(immune.integrated, ndims=50)
 
 # Constructing the UMAP
-immune.integrated <- RunUMAP(immune.integrated, dims = 1:15,
-                             reduction = "integrated_pca",
-                             reduction.name = "integrated_umap",
-                             assay = "integrated",
-                             verbose = T)
-immune.integrated <- FindNeighbors(immune.integrated,
-                                   dims = 1:15,
-                                   reduction = "integrated_pca",
-                                   assay = "integrated")
-immune.integrated.clusters <- FindClusters(object = immune.integrated,
-                                           resolution = c(0.1, 0.5, 1, 1.5, 2, 2.5),
-                                           graph.name = "integrated_snn")
-
-saveRDS(immune.integrated.clusters, file = "/scratch/hnatri/ILD/Seurat_objects/immune_integrated_dims15_clusters_210804.rds")
-
-immune <- immune.integrated.clusters
+immune <- RunUMAP(immune, dims = 1:15,
+                  reduction = "integrated_pca",
+                  reduction.name = "integrated_umap",
+                  assay = "integrated",
+                  verbose = T)
+immune <- FindNeighbors(immune,
+                        dims = 1:15,
+                        reduction = "integrated_pca",
+                        assay = "integrated")
+immune <- FindClusters(object = immune,
+                       resolution = c(0.1, 0.5, 1, 1.5, 2, 2.5),
+                       graph.name = "integrated_snn")
 
 immune@meta.data$seurat_clusters <- immune@meta.data$integrated_snn_res.2
 Idents(immune) <- "integrated_snn_res.2"
-
-# Proportions of doublets in each cluster:
-doublet_summary <- immune@meta.data %>% group_by(seurat_clusters, doublet_finder) %>%
-    summarize(n = n())
-
-doublet_summary <- pivot_wider(doublet_summary, names_from = doublet_finder, values_from = n) 
-doublet_summary$doublet_prop <- doublet_summary$Doublet/(doublet_summary$Doublet+doublet_summary$Singlet)
-doublet_summary <- arrange(doublet_summary, desc(doublet_prop))
 
 # Look for doublets
 DimPlot(immune, reduction="integrated_umap", group.by="integrated_snn_res.2")
@@ -382,9 +311,6 @@ immune.ref <- UpdateSCTAssays(immune.ref)
 ElbowPlot(immune.ref, ndims=50)
 best_pcs_immune.ref <- get_pcs(immune.ref)
 
-DefaultAssay(immune.ref)
-DefaultAssay(immune)
-
 # Need the SCT assay for FindTransferAnchors
 DefaultAssay(immune) <- "RNA"
 immune <- SCTransform(immune)
@@ -420,23 +346,6 @@ immune.predictions <- TransferData(anchorset = immune.anchors,
 
 immune <- AddMetaData(immune, metadata = immune.predictions)
 
-immune_col <- c("Proliferating" = "#009FFA",
-                "Monocyte-derived macrophage" = "#FF6B65",
-                "moDC" = "#A39922",
-                "Inflammatory monocyte" = "#CC8B22",
-                "Alveolar macrophage" = "#EB7B27",
-                "cDC2" = "#FF57C3",
-                "cDC1" = "#00B7BB",
-                "Macrophage - SPP1+" = "#00AE21",
-                "Monocyte" = "#00AFE0",
-                "CD4" = "#6CA421",
-                "NK" = "#00B990",
-                "Mast" = "#C471FA",
-                "pDC" = "#FF5D97",
-                "CD8/NKT" = "#00B560",
-                "Plasma" = "#F35EE6",
-                "B cells" = "#748AFA")
-
 p1 <- DimPlot(immune.ref, group.by = "celltype", label = T, repel = T, cols = immune_col) + 
     NoLegend() + ggtitle ("Reference")
 p2 <- DimPlot(immune, reduction="integrated_umap", group.by = "predicted.id", label = T, repel = T, cols = immune_col) + 
@@ -444,82 +353,64 @@ p2 <- DimPlot(immune, reduction="integrated_umap", group.by = "predicted.id", la
 
 p1 + p2
 
-saveRDS(immune, file = "/scratch/hnatri/ILD/Seurat_objects/immune_sct_ncells5k_nfeat3k_dims15_clusters_res2_woutDoublets_dims14_annotated_210804.rds")
-
 # Manual annotations based on marker gene expression
 
 # B cell markers
-bcell_markers <- c("MS4A1", "CD19", "CD79A")
 DotPlot(immune, features=c("PTPRC", bcell_markers))
 FeaturePlot(immune, features=bcell_markers)
 
 # Plasma cell markers
-plasma_markers <- c("JCHAIN", "IGHG1", "IGLL5")
 DotPlot(immune, features=c("PTPRC", plasma_markers))
 FeaturePlot(immune, features=plasma_markers)
 
 # Mast cell markers
-mast_markers <- c("CPA3", "KIT")
 DotPlot(immune, features=c("PTPRC", mast_markers))
 FeaturePlot(immune, features=mast_markers)
 
 # Monocyte markers
 # Inflammatory monocytes: IL-6, IL-8, CCL2, CCL3, and CCL5. CCR2, GR1
-monocyte_markers <- c("CD14", "CD16", "S100A12", "FCN1", "S100A9", "LYZ", "CD14", "CCL2", "CCL3", "CCL5", "IL6", "IL8", "CCR2", "GR1")
 DotPlot(immune, features=c("PTPRC", monocyte_markers))
 FeaturePlot(immune, features=monocyte_markers)
 
 # cDC markers
 # cDC1: CD11C (ITGAX)
 # cDC2: IRF4
-cdc_markers <- c("FCER1A", "CD1C", "CLEC9A", "IRF4", "CD11C")
 DotPlot(immune, features=c("PTPRC", cdc_markers))
 FeaturePlot(immune, features=cdc_markers)
 
-DimPlot(immune, split.by = "predicted.id", ncol = 4) + NoLegend()
-
 # pDC markers
-pdc_markers <- c("LILRA4", "CLEC4C", "JCHAIN")
 DotPlot(immune, features=c("PTPRC", pdc_markers))
 FeaturePlot(immune, features=pdc_markers)
 
 # Macrophage markers
-macrophage_markers <- c("LYZ", "MARCO", "FCGR1A", "C1QA", "APOC1", "SPP1")
 DotPlot(immune, features=c("PTPRC", macrophage_markers))
 FeaturePlot(immune, features=macrophage_markers)
 
 # Proliferating Macrophages
-prolif_macrophage_markers <- c("MKI67", "CD1", "LYZ")
 DotPlot(immune, features=c("PTPRC", prolif_macrophage_markers))
 FeaturePlot(immune, features=prolif_macrophage_markers)
 
 # NK cell markers. NKG7 (high), CD8A-
-nk_markers <- c("NCR1", "KLRB1", "NKG7", "CD8A", "GNLY")
 DotPlot(immune, features=c("PTPRC", nk_markers))
 FeaturePlot(immune, features=nk_markers)
 
 # T cell markers
-tcell_markers <- c("CD3E")
 DotPlot(immune, features=c("PTPRC", tcell_markers))
 FeaturePlot(immune, features=tcell_markers)
 
 # Proliferating T Cells
-prolif_tcell_markers <- c("MKI67", "CD1", "CD3E")
 DotPlot(immune, features=c("PTPRC", prolif_tcell_markers))
 FeaturePlot(immune, features=prolif_tcell_markers)
 
 # TReg markers
-treg_markers <- c("FOXP3")
 DotPlot(immune, features=c("PTPRC", treg_markers))
 FeaturePlot(immune, features=treg_markers)
 
 # CD8 T cells
-cd8_tcell_markers <- c("CD8A")
 DotPlot(immune, features=c("PTPRC", cd8_tcell_markers))
 FeaturePlot(immune, features=cd8_tcell_markers)
 
 # CD4 T cells, CD8A-
-cd4_tcell_markers <- c("CD4", "IL7R", "CD8A")
 DotPlot(immune, features=c("PTPRC", cd4_tcell_markers))
 FeaturePlot(immune, features=cd4_tcell_markers)
 
@@ -546,52 +437,45 @@ manual_annotation_1[manual_annotation_1 %in% c(12, 15, 33, 30)] <- "CD4"
 immune@meta.data$manual_annotation_1 <- manual_annotation_1
 
 # Saving the object
-saveRDS(immune, file = "/scratch/hnatri/ILD/Seurat_objects/immune_sct_ncells5k_nfeat3k_dims15_clusters_res2_woutDoublets_dims14_annotated_manualannot_210805.rds")
+saveRDS(immune, file = "/scratch/hnatri/ILD/Seurat_objects/immune.rds")
 
 # =====================================
 # Mesenchymal cell population
 # ====================================
 
 # Split out the mesenchymal population
-mesen.integrated <- subset(ild_all,
-                           cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Mesenchymal",]))
+mesen <- subset(ild_all,
+                cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Mesenchymal",]))
 
-DefaultAssay(mesen.integrated) <- "integrated"
+DefaultAssay(mesen) <- "integrated"
 
 # Finding variable features, rescaling and running PCA
-mesen.integrated <- FindVariableFeatures(mesen.integrated,
-                                         assay = "integrated")
-mesen.integrated.features <- VariableFeatures(mesen.integrated,
-                                              assay = "integrated")
-mesen.integrated <- ScaleData(mesen.integrated,
-                              assay = "integrated",
-                              verbose = T)
-# TODO: redo
-mesen.integrated <- RunPCA(mesen.integrated,
-                           reduction.name = "integrated_pca",
-                           assay = "integrated",
-                           features = mesen.integrated.features,
-                           verbose = T)
+mesen <- FindVariableFeatures(mesen, assay = "integrated")
+mesen.features <- VariableFeatures(mesen.integrated, assay = "integrated")
+mesen <- ScaleData(mesen, assay = "integrated", verbose = T)
+mesen <- RunPCA(mesen,
+                reduction.name = "integrated_pca",
+                assay = "integrated",
+                features = mesen.integrated.features,
+                verbose = T)
 
 # How many PCs to include?
 ElbowPlot(mesen.integrated, ndims=50)
-best_pcs_mesen.integrated <- get_pcs(mesen.integrated, reduction_name="integrated_pca")
+get_pcs(mesen, reduction_name="integrated_pca")
 
 # Constructing the UMAP
-mesen.integrated <- RunUMAP(mesen.integrated, dims = 1:25,
-                            reduction = "integrated_pca",
-                            reduction.name = "integrated_umap",
-                            assay = "integrated",
-                            verbose = T)
-mesen.integrated <- FindNeighbors(mesen.integrated,
-                                  dims = 1:25,
-                                  reduction = "integrated_pca",
-                                  assay = "integrated")
-mesen.integrated.clusters <- FindClusters(object = mesen.integrated,
-                                          resolution = c(0.1, 0.5, 1, 1.5, 2, 2.5),
-                                          graph.name = "integrated_snn")
-
-mesen <- mesen.integrated.clusters
+mesen <- RunUMAP(mesen, dims = 1:25,
+                 reduction = "integrated_pca",
+                 reduction.name = "integrated_umap",
+                 assay = "integrated",
+                 verbose = T)
+mesen <- FindNeighbors(mesen,
+                       dims = 1:25,
+                       reduction = "integrated_pca",
+                       assay = "integrated")
+mesen <- FindClusters(object = mesen,
+                      resolution = c(0.1, 0.5, 1, 1.5, 2, 2.5),
+                      graph.name = "integrated_snn")
 
 mesen@meta.data$seurat_clusters <- mesen@meta.data$integrated_snn_res.2
 Idents(mesen) <- "integrated_snn_res.2"
@@ -609,11 +493,9 @@ mesen@meta.data$doublet <- doublets
 DefaultAssay(mesen) <- "integrated"
 mesen2 <- subset(mesen, cells = rownames(mesen@meta.data[mesen@meta.data$doublet != "Doublets", ]))
 DimPlot(mesen2, group.by = "seurat_clusters", label=T, repel=T) + NoLegend()
-mesen2 <- FindVariableFeatures(mesen2,
-                               assay = "integrated")
+mesen2 <- FindVariableFeatures(mesen2, assay = "integrated")
 mesen2.features <- VariableFeatures(mesen2)
-mesen2 <- ScaleData(mesen2,
-                    assay = "integrated")
+mesen2 <- ScaleData(mesen2, assay = "integrated")
 mesen2 <- RunPCA(mesen2,
                  reduction.name = "integrated_pca",
                  assay = "integrated",
@@ -622,7 +504,7 @@ mesen2 <- RunPCA(mesen2,
 
 # How many PCs to include?
 ElbowPlot(mesen2, ndims=50)
-best_pcs_mesen.integrated <- get_pcs(mesen2, reduction_name="integrated_pca")
+get_pcs(mesen2, reduction_name="integrated_pca")
 
 # Constructing the UMAP
 mesen2 <- RunUMAP(mesen2,
@@ -647,8 +529,7 @@ mesen <- mesen2
 # Run FindtransferAnchors
 mesen.ref <- readRDS("/scratch/hnatri/ILD/Seurat_objects/Sci_Adv/mesenchymal_cleaned_annotated_reclustered_20200220.rds")
 mesen.ref <- UpdateSeuratObject(mesen.ref)
-
-best_pcs_mesen.ref <- get_pcs(mesen.ref)
+get_pcs(mesen.ref)
 
 mesen.anchors <- FindTransferAnchors(reference = mesen.ref,
                                      query = mesen,
@@ -665,17 +546,6 @@ mesen.predictions <- TransferData(anchorset = mesen.anchors,
 
 mesen <- AddMetaData(mesen, metadata = mesen.predictions)
 
-mesen_col <- c("MyoFB" = "#00B13B",
-               "HAS1 High Activated FB" = "#FF6B65",
-               "SMC" = "#DC68F6",
-               "MyoFB - Activated" = "#00B995",
-               "Matrix FB" ="#D38721",
-               "PLIN2+ FB" = "#4A92FA",
-               "Pericyte" = "#00B0DC",
-               "Mesothelial" = "#87A022",
-               "WNT2+ FB" = "#FF57B9")
-
-# cols = mesen_col
 p1 <- DimPlot(mesen.ref, group.by = "celltypes", label = T, repel = T, cols = mesen_col) + 
     NoLegend() + ggtitle ("Reference")
 p2 <- DimPlot(mesen, group.by = "predicted.id", label = T, repel = T, cols = mesen_col) + 
@@ -683,42 +553,18 @@ p2 <- DimPlot(mesen, group.by = "predicted.id", label = T, repel = T, cols = mes
 
 p1 + p2
 
-saveRDS(mesen, file = "/scratch/hnatri/ILD/Seurat_objects/mesenchymal_sct_ndims25_res2_woutDoublets_ndims16_annotated_210809.rds")
-
 # Manual annotations
 DefaultAssay(mesen) <- "SCT"
-
-mesothelial_markers <- c("MSLN", "UPK3B", "HP", "WT1")
 FeaturePlot(mesen, features = mesothelial_markers)
-
-smc_markers <- c("ACTA2", "PDGFRB", "MYH11", "TAGLN", "DES", "ACTG2")
 FeaturePlot(mesen, features = smc_markers)
-
-pericyte_markers <- c("ACTA2", "PDGFRB", "RGS5", "HIGD1B", "GJA4")
 FeaturePlot(mesen, features = pericyte_markers)
-
-fibroblast_markers <- c("LUM", "DCN", "PDGFRA")
 FeaturePlot(mesen, features = fibroblast_markers)
-
-myofb_markers <- c("MYLK", "ACTA2", "COL8A1", "COL1A1", "WNT2")
 FeaturePlot(mesen, features = myofb_markers)
-
-activated_myofb_markers <- c("COL1A1", "POSTN", "CTHRC1")
 FeaturePlot(mesen, features = activated_myofb_markers)
-
-WNT2_fibro_markers <- c("MYLK", "WNT2", "A2M", "GPC3", "MACF1", "CES1", "LIMCH1")
 FeaturePlot(mesen, features = WNT2_fibro_markers)
-
-matrixfb_markers <- c("SFRP2", "CLU", "APOD", "FBLN1", "CST3", "IGFBP6", "SCARA5", "CD34")
 FeaturePlot(mesen, features = matrixfb_markers)
-
-PLIN2_fibro_markers <- c("PLIN2", "HAS1")
 FeaturePlot(mesen, features = PLIN2_fibro_markers)
-
-HAS1_fibro_markers <- c("HAS1", "TWIST1", "PLIN2")
 FeaturePlot(mesen, features = HAS1_fibro_markers)
-
-act_HAS1_fibro_markers <- c("LIF", "ICAM1", "CXCL2", "HAS1", "PLIN2")
 FeaturePlot(mesen, features = act_HAS1_fibro_markers)
 
 DimPlot(mesen, group.by = "predicted.id", repel = T, label = T) + NoLegend()
@@ -737,51 +583,45 @@ manual_annotation_1[manual_annotation_1 %in% c(12, 10, 18)] <- "MyoFB - Activate
 
 mesen@meta.data$manual_annotation_1 <- manual_annotation_1
 
-saveRDS(mesen, "/scratch/hnatri/ILD/Seurat_objects/mesenchymal_integrated_ndims17_res2_woutDoublets_ndims16_annotated_210809_manualannot.rds")
+saveRDS(mesen, "/scratch/hnatri/ILD/Seurat_objects/mesenchymal.rds")
 
 # =====================================
 # Endothelial cell population
 # =====================================
 
 # Split out the endothelial population
-endo.integrated <- subset(ild_all,
-                          cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Endothelial",]))
+endo <- subset(ild_all,
+               cells = rownames(ild_all@meta.data[ild_all@meta.data$population == "Endothelial",]))
 
-DefaultAssay(endo.integrated) <- "integrated"
+DefaultAssay(endo) <- "integrated"
 
 # Finding variable features, rescaling and running PCA
-endo.integrated <- FindVariableFeatures(endo.integrated,
-                                        assay = "integrated")
-endo.integrated.features <- VariableFeatures(endo.integrated,
-                                             assay = "integrated")
-endo.integrated <- ScaleData(endo.integrated,
-                             assay = "integrated",
-                             verbose = T)
-endo.integrated <- RunPCA(endo.integrated,
-                          reduction.name = "integrated_pca",
-                          assay = "integrated",
-                          features = endo.integrated.features,
-                          verbose = T)
+endo <- FindVariableFeatures(endo, assay = "integrated")
+endo.features <- VariableFeatures(endo, assay = "integrated")
+endo <- ScaleData(endo, assay = "integrated", verbose = T)
+endo <- RunPCA(endo,
+               reduction.name = "integrated_pca",
+               assay = "integrated",
+               features = endo.integrated.features,
+               verbose = T)
 
 # How many PCs to include?
 ElbowPlot(endo.integrated, ndims=50)
-best_pcs_endo.integrated <- get_pcs(endo.integrated, reduction_name="integrated_pca")
+get_pcs(endo.integrated, reduction_name="integrated_pca")
 
 # Constructing the UMAP
-endo.integrated <- RunUMAP(endo.integrated, dims = 1:17,
-                           reduction = "integrated_pca",
-                           reduction.name = "integrated_umap",
-                           assay = "integrated",
-                           verbose = T)
-endo.integrated <- FindNeighbors(endo.integrated,
-                                 dims = 1:17,
-                                 reduction = "integrated_pca",
-                                 assay = "integrated")
-endo.integrated.clusters <- FindClusters(object = endo.integrated,
-                                         resolution = c(0.1, 0.5, 1, 1.5, 2, 2.5),
-                                         graph.name = "integrated_snn")
-
-endo <- endo.integrated.clusters
+endo <- RunUMAP(endo, dims = 1:17,
+                reduction = "integrated_pca",
+                reduction.name = "integrated_umap",
+                assay = "integrated",
+                verbose = T)
+endo <- FindNeighbors(endo,
+                      dims = 1:17,
+                      reduction = "integrated_pca",
+                      assay = "integrated")
+endo.clusters <- FindClusters(object = endo,
+                              resolution = c(0.1, 0.5, 1, 1.5, 2, 2.5),
+                              graph.name = "integrated_snn")
 
 endo@meta.data$seurat_clusters <- endo@meta.data$integrated_snn_res.1
 Idents(endo) <- "integrated_snn_res.1"
@@ -798,11 +638,9 @@ endo@meta.data$doublet <- doublets
 DefaultAssay(endo) <- "integrated"
 endo2 <- subset(endo, cells = rownames(endo@meta.data[endo@meta.data$doublet != "Doublets", ]))
 DimPlot(endo2, group.by = "seurat_clusters", label=T, repel=T) + NoLegend()
-endo2 <- FindVariableFeatures(endo2,
-                              assay = "integrated")
+endo2 <- FindVariableFeatures(endo2, assay = "integrated")
 endo2.features <- VariableFeatures(endo2)
-endo2 <- ScaleData(endo2,
-                   assay = "integrated")
+endo2 <- ScaleData(endo2, assay = "integrated")
 endo2 <- RunPCA(endo2,
                 reduction.name = "integrated_pca",
                 assay = "integrated",
@@ -811,7 +649,7 @@ endo2 <- RunPCA(endo2,
 
 # How many PCs to include?
 ElbowPlot(endo2, ndims=50)
-best_pcs_endo2 <- get_pcs(endo2, reduction_name="integrated_pca")
+get_pcs(endo2, reduction_name="integrated_pca")
 
 # Constructing the UMAP
 endo2 <- RunUMAP(endo2,
@@ -836,7 +674,7 @@ endo.ref <- readRDS("/scratch/hnatri/ILD/Seurat_objects/Sci_Adv/sci_adv_stromal_
 endo.ref <- UpdateSeuratObject(endo.ref)
 endo.ref <- UpdateSCTAssays(endo.ref)
 
-# Removing mesenchymal populations
+# Removing mesenchymal cell types
 endo.cells <- c("Endothelial - capillary","Endothelial - venule","Endothelial - arteriole", 
                 "Lymphatic", "Endothelial - inflamed","Endothelial - CA4+ capillary", 
                 "Endothelial - peribronchiolar")
@@ -844,10 +682,8 @@ endo.ref <- subset(endo.ref, cells=rownames(endo.ref@meta.data[endo.ref@meta.dat
 endo.ref <- SCTransform(endo.ref)
 endo.ref <- RunPCA(endo.ref)
 
-best_pcs_endo.ref <- get_pcs(endo.ref)
-
+get_pcs(endo.ref)
 endo.ref <- RunUMAP(endo.ref, dims = 1:17)
-
 endo <- endo2
 
 # Run FindtransferAnchors
@@ -866,22 +702,12 @@ endo.predictions <- TransferData(anchorset = endo.anchors,
 
 endo <- AddMetaData(endo, metadata = endo.predictions)
 
-endo_col <- c("Endothelial - capillary" = "#FF6B65",
-              "Endothelial - venule" = "#00B7BB",
-              "Endothelial - arteriole" = "#00ADE5",
-              "Lymphatic" = "#009AFA", 
-              "Endothelial - inflamed" = "#9B7FFA",
-              "Endothelial - CA4+ capillary" = "#FF57CF", 
-              "Endothelial - peribronchiolar" = "#FF5C9E")
-
 p1 <- DimPlot(endo.ref, group.by = "celltype", label = T, repel = T, cols = endo_col) + 
     NoLegend() + ggtitle("Reference")
 p2 <- DimPlot(endo, group.by = "predicted.id", label = T, repel = T, cols = endo_col) + 
     NoLegend() + ggtitle("Query")
 
 p1 + p2
-
-saveRDS(endo, file = "/scratch/hnatri/ILD/Seurat_objects/endothelial_sct_ndims19_res1_woutDoublets_ndims17_annotated_210808.rds")
 
 # Manual annotations
 endo_markers <- c("PECAM1", "CLDN5", "PTPRC")
@@ -929,7 +755,7 @@ manual_annotation_1[manual_annotation_1 %in% c(0, 3, 9, 10, 25, 22)] <- "Endothe
 
 endo@meta.data$manual_annotation_1 <- manual_annotation_1
 
-saveRDS(endo, file = "/scratch/hnatri/ILD/Seurat_objects/endothelial_sct_ndims19_res1_woutDoublets_ndims17_annotated_210808_manualannot.rds")
+saveRDS(endo, file = "/scratch/hnatri/ILD/Seurat_objects/endothelial.rds")
 
 # =====================================================
 # Merge objects
@@ -946,7 +772,6 @@ ild <- merge(x=epi, y=c(mesen, endo, immune))
 # Some gene_names have extra .1 at the end, dropping those
 counts <- GetAssayData(epi, assay = "RNA")
 counts <- counts[-(which(rownames(counts) %in% setdiff(rownames(epi), gtf_df_genes$gene_name))),]
-epi <- subset(epi, features = rownames(counts))
 
 DefaultAssay(ild) <- "RNA"
 ild[["SCT"]] <- NULL
@@ -960,59 +785,6 @@ ild <- RunPCA(ild)
 get_pcs(ild)
 ild <- RunUMAP(ild, dims=1:15)
 
-DimPlot(ild, group.by = "manual_annotation_1", label = T, repel = T) + NoLegend()
-
 # Saving the object
 saveRDS(ild, file = "/scratch/hnatri/ILD/Seurat_objects/ILD_annotated_210819.rds")
 
-# Less granular annotations
-simple_celltypes <- ild@meta.data$predicted.id
-simple_celltypes <- multigsub(c("Secretory - SCGB1A1+/MUC5B+",
-                                "Secretory - MUC5AC+",
-                                "Secretory - SCGB1A1+/SCGB3A2+",
-                                "Secretory - SCGB3A1+/MUC5B+",
-                                "Secretory - SCGB3A2+"),
-                              replicate(5, "Secretory"), simple_celltypes)
-
-simple_celltypes <- multigsub(c("Endothelial - capillary",
-                                "Endothelial - CA4+ capillary",
-                                "Endothelial - inflamed",
-                                "Endothelial - peribronchiolar",
-                                "Endothelial - venule",
-                                "Endothelial - arteriole"),
-                              replicate(6, "Vascular endothelial"), simple_celltypes)
-
-simple_celltypes <- gsub("AT2 - low quality", "AT2", simple_celltypes)
-simple_celltypes <- gsub("Lymphatic", "Lymphatic endothelial", simple_celltypes)
-
-simple_celltypes <- gsub("Macrophage - SPP1+", "Macrophage", simple_celltypes)
-
-simple_celltypes <- multigsub(unique(mesen@meta.data$predicted.id),
-                              replicate(length(unique(mesen@meta.data$predicted.id)), "Fibroblasts"), simple_celltypes)
-
-ild@meta.data$simple_celltypes <- simple_celltypes
-
-
-filename <- "/scratch/hnatri/ILD/Processing_annotation/all_pops_umap_simple_celltypes.pdf"
-pdf(file = filename,
-    width = 6, # The width of the plot in inches
-    height = 6) # The height of the plot in inches
-DimPlot(ild, group.by = "simple_celltypes", label=T) +
-    theme(legend.position = "none")
-dev.off()
-
-ild_lowdims <- RunUMAP(ild, dims=1:5)
-ild_highdims <- RunUMAP(ild, dims=1:50)
-ild_highdims2 <- ild_highdims
-
-ild_highdims2@meta.data$simple_celltypes <- simple_celltypes
-
-filename <- "/scratch/hnatri/ILD/Processing_annotation/all_pops_umap_simple_celltypes_dims50.pdf"
-pdf(file = filename,
-    width = 7, # The width of the plot in inches
-    height = 7) # The height of the plot in inches
-DimPlot(ild_highdims2, group.by = "simple_celltypes", label=T, repel=T) +
-    theme(legend.position = "none") + ggtitle("")
-dev.off()
-
-saveRDS(ild, file = "/scratch/hnatri/ILD/Seurat_objects/ILD_annotated_210819.rds")
