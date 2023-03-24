@@ -47,7 +47,7 @@ source("lung_celltype_colors.R")
 # Preventing trying to getcredentials
 gs4_deauth()
 
-metadata <- gs4_get("https://docs.google.com/spreadsheets/d/1rCrE8KAelXHX_MHxi48119ZLmJhs29QZb1eGcc11mg0/edit?usp=sharing")
+metadata <- gs4_get(url)
 sheet_names(metadata)
 
 ipf_metadata <- read_sheet(metadata, sheet = "IPF") 
@@ -209,7 +209,6 @@ names(gex_hashed_10x_data)
 saveRDS(gex_hashed_10x_data, "/scratch/hnatri/ILD/Seurat_objects/gex_hashed_10x_data.rds")
 saveRDS(hashed_10x_data, "/scratch/hnatri/ILD/Seurat_objects/hashed_10x_data.rds")
 saveRDS(d10x_data, "/scratch/hnatri/ILD/Seurat_objects/gex_10x_data.rds")
-#gex_hashed_10x_data <- readRDS("gex_hashed_10x_data.rds")
 
 # ======================================
 # QC
@@ -247,12 +246,6 @@ length(unique(ild2@meta.data$orig.ident))
 
 # Count number of cells before and after filter
 table(ild@meta.data$orig.ident)
-write.csv(table(ild@meta.data$orig.ident), file = "cellcount_prefiltered.csv")
-write.csv(table(ild2@meta.data$orig.ident), file = "cellcount_postfiltered.csv")
-
-# Save the object
-saveRDS(ild, file = "/scratch/hnatri/ILD/Seurat_objects/prefiltered.rds")
-saveRDS(ild2, file = "/scratch/hnatri/ILD/Seurat_objects/postfiltered.rds")
 
 # Which samples were filtered out?
 setdiff(ild@meta.data$orig.ident, ild2@meta.data$orig.ident)
@@ -268,10 +261,6 @@ ild_all@meta.data$orig.ident <- gsub("VU", "", ild_all@meta.data$orig.ident)
 ild_all@meta.data$orig.ident <- gsub("T", "", ild_all@meta.data$orig.ident)
 
 ipf_metadata <- ipf_metadata[which(ipf_metadata$Library_ID %in% ild_all@meta.data$orig.ident),]
-
-# Count Sample_Names that have multiple samples
-ipf_metadata[ipf_metadata$Sample_Name %in% unique(ipf_metadata$Sample_Name[duplicated(ipf_metadata$Sample_Name)]),]
-length(unique(ipf_metadata[ipf_metadata$Sample_Name %in% unique(ipf_metadata$Sample_Name[duplicated(ipf_metadata$Sample_Name)]),]$Sample_Name))
 
 # How many patients with IPF?
 unique(ipf_metadata$Clinical_Diagnosis)
@@ -364,19 +353,6 @@ ild_all@meta.data$Sample_Type <- gsub("Control\n", "Control", ild_all@meta.data$
 
 saveRDS(ild_all, file = "/scratch/hnatri/ILD/Seurat_objects/ILD_all_metadata.rds")
 
-# Extract metadata
-md <- ild_all@meta.data %>% as.data.table
-
-# Count the number of cells per unique combinations of "Sample" and "seurat_clusters"
-md[, .N, by = c("orig.ident")]
-hist(md[, .N, by = c("orig.ident")]$N, breaks = 50)
-head(sort(md[, .N, by = c("orig.ident")]$N))
-
-head(ild_all@meta.data)
-
-unique(sapply(strsplit(batchids,split="_") , "[[", 8))
-setdiff(unique(sapply(strsplit(batchids,split="_") , "[[", 8)), unique(ild_all@meta.data$orig.ident))
-
 # Calculating cell cycle scores
 # A list of cell cycle markers, from Tirosh et al, 2015, is loaded with Seurat.
 # Segregate this list into markers of G2/M phase and markers of S phase
@@ -384,9 +360,6 @@ s.genes <- cc.genes$s.genes
 g2m.genes <- cc.genes$g2m.genes
 ild_all.cc <- CellCycleScoring(ild_all, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
 ild_all <- ild_all.cc
-
-# Visualize the distribution of cell cycle markers across
-RidgePlot(ild_all.cc, features = c("PCNA", "TOP2A", "MCM6", "MKI67"), ncol = 2)
 
 saveRDS(ild_all, file = "/scratch/hnatri/ILD/Seurat_objects/ILD_all_metadata_ccscore.rds")
 
@@ -436,7 +409,7 @@ ild_all.integrated <- RunPCA(ild_all.integrated,
                              verbose = T)
 
 # Finding the numbers of PCs for UMAP
-best_pcs_ild_all.integrated <- get_pcs(ild_all.integrated, reduction_name = "integrated_pca")
+get_pcs(ild_all.integrated, reduction_name = "integrated_pca")
 # Constructing UMAP
 # n.neighbors = 50, min.dist = 0.5, spread = 1, 
 ild_all.integrated <- RunUMAP(ild_all.integrated,
