@@ -70,15 +70,6 @@ gwas_list <- list("ukbb_gwas" = "/labs/banovich/IPF/GWAS/ukbb_gwas_harmonized.ts
                   "asthma_child_gwas" = "/labs/banovich/IPF/GWAS/asthma_child_gwas_harmonized.tsv.gz")
 
 # Gene lists
-gene_list <- lapply(seq(1, 6), function(i){
-    genes <- readLines(paste0("/labs/banovich/IPF/eQTL/2022-08-10_38celltypes-mashr/2022-09-08_eGeneClusterLists/2022-09-08_cluster", i, ".txt"))
-    
-    genes
-})
-genes <- unlist(gene_list)
-length(genes)
-
-# New gene lists
 new_gene_list <- lapply(seq(1, 7), function(i){
     genes <- readLines(paste0("/labs/banovich/IPF/eQTL/2022-08-10_38celltypes-mashr/2022-09-21_eGenesMulticelltypeClusterLists/2022-09-21_eQTL-heatmap-allBetas-nonUniqueclusterk", i, ".txt"))
     
@@ -88,8 +79,6 @@ new_genes <- unlist(new_gene_list)
 length(new_genes)
 new_genes <- sapply(strsplit(new_genes,"\\|"), `[`, 1)
 new_genes <- unique(new_genes)
-
-# Only using the new lists
 genes <- new_genes
 
 # Ensembl IDs
@@ -99,8 +88,6 @@ genes <- as.character(na.omit(genes))
 length(unique(genes))
 
 # Significant mashR hits
-# 1 × 10-6
-# 1 × 10-12
 mashr_sighits <- readRDS("/labs/banovich/IPF/eQTL/2022-08-10_38celltypes-mashr/mashr_summary_stats-significant-eQTL.rds")
 
 # Minor allele frequencies
@@ -125,7 +112,7 @@ if (celltype %in% c("gtex_lung", "gtex_blood", "gtex_brain")){
     
     limix_res <- fread(paste0("/labs/banovich/IPF/eQTL/limix_summaryStats_20220701_allSNPS/", celltype, "/qtl_results_all.txt"), header=T, sep="\t")
     colnames(limix_res) <- gsub("snp_id", "rsid", colnames(limix_res))
-    limix_res <- merge(limix_res, ild_maf, by = "rsid") # The ild_maf file no longer has MAF, it comes from the LIMIX output
+    limix_res <- merge(limix_res, ild_maf, by = "rsid") # MAF comes from the LIMIX output
     limix_maf <- distinct(limix_res[,c("snp_id", "rsid", "maf", "snp_chromosome", "snp_position", "ref", "alt")])
     
     # Adding MAF info from LIMIX outputs
@@ -206,8 +193,7 @@ run_coloc <- function(celltype, gwas, gwas_data, gene){
   }
 
   # Subsetting eQTL summary statistics
-  gene_eqtl_stats <- eqtl_nom_stats
-  gene_eqtl_stats <- gene_eqtl_stats[which(gene_eqtl_stats$feature_id == gene),]
+  gene_eqtl_stats <- eqtl_nom_stats[which(eqtl_nom_stats$feature_id == gene),]
   
   eqtl_N <- unique(gene_eqtl_stats$n_samples)
   gwas_N <- as.numeric(eqtl_celltype_gwas_ninds[gwas])
