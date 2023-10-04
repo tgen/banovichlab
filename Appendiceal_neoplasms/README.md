@@ -20,3 +20,8 @@ Phone: 626-218-5484
 Email: mraoof@coh.org  
 
 GEO Accession: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE244031 
+
+| File                                                        | Description                                         |
+|-------------------------------------------------------------|-----------------------------------------------------|
+|[GSE244031_Appendiceal_Epithelial_infercnv_HMMi3.rds.gz](https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE244031&format=file&file=GSE244031%5FAppendiceal%5FEpithelial%5Finfercnv%5FHMMi3%2Erds%2Egz)       | A Seurat object for epithelial cells with CNV information incorporated |
+|[GSE244031_Appendiceal_integratedrpca_alllineages_final.rds.gz](https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE244031&format=file&file=GSE244031%5FAppendiceal%5Fintegratedrpca%5Falllineages%5Ffinal%2Erds%2Egz)| A Seurat object with all cells and full annotation  |
